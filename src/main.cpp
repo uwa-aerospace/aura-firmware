@@ -4,8 +4,14 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 
-bool ledState = false;
+// Flight computer peripherals
+#include "gnss.h"
 
+// Pin and MCU function declarations
+#define GNSS_RX_PIN 18
+#define GNSS_TX_PIN 21
+
+bool ledState = false;
 void BlinkTask(void *pvParameters) {
   digitalWrite(LED_BUILTIN, 0);
   while (1) {
@@ -23,11 +29,20 @@ void PrintTask(void *pvParameters) {
 }
 
 void setup() {
+  // Debug essentials
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
 
-  xTaskCreate(BlinkTask, "BlinkTask", 2048, NULL, 1, NULL);
-  xTaskCreate(PrintTask, "PrintTask", 2048, NULL, 2, NULL);
+  // GNSS SETUP
+  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  setupGNSS(Serial2);
+
+  // Peripheral/component tasks
+  xTaskCreate(GNSSTask, "GNSSTask", 8192, NULL, 1, NULL);
+
+  // For alive testing, temporary
+  // xTaskCreate(BlinkTask, "BlinkTask", 2048, NULL, 1, NULL);
+  // xTaskCreate(PrintTask, "PrintTask", 2048, NULL, 1, NULL);
 }
 
 void loop() {
