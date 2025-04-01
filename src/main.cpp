@@ -13,18 +13,17 @@
 
 bool ledState = false;
 void BlinkTask(void *pvParameters) {
-  digitalWrite(LED_BUILTIN, 0);
   while (1) {
-    // digitalWrite(LED_BUILTIN, ledState);
-    // ledState = !ledState;
+    digitalWrite(LED_BUILTIN, ledState);
+    ledState = !ledState;
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
 void PrintTask(void *pvParameters) {
   while (1) {
-    ESP_LOGI("MAIN", "hello platformio");
-    vTaskDelay(pdMS_TO_TICKS(495));
+    printf("Hello platformio\n");
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
@@ -38,7 +37,7 @@ void setup() {
   setupGNSS(Serial2);
 
   // Peripheral/component tasks
-  xTaskCreate(GNSSTask, "GNSSTask", 8192, NULL, 1, NULL);
+  xTaskCreate(GnssTask, "GnssTask", 2048, NULL, 1, NULL);
 
   // For alive testing, temporary
   // xTaskCreate(BlinkTask, "BlinkTask", 2048, NULL, 1, NULL);
