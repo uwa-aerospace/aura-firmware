@@ -1,5 +1,6 @@
 #include "gnss.h"
 #include <Arduino.h>
+#include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_log.h"
@@ -17,18 +18,24 @@ void setupGNSS(HardwareSerial &serialPort) {
 
   /* SETTINGS WILL PERSIST ONCE INITIALLY SET UP */
 
-  // // Increase baud rate to accommodate higher data rate
-  // neo.setSerialRate(460800);
-  // serialPort.updateBaudRate(460800);
+  // Increase baud rate to accommodate higher data rate
+  neo.setSerialRate(460800);
+  serialPort.updateBaudRate(460800);
 
-  // // UBX is more efficient
-  // neo.setUART1Output(COM_TYPE_UBX);
+  // UBX is more efficient
+  neo.setUART1Output(COM_TYPE_UBX);
 
-  // // Set 25Hz data rate (maximum possible for NEO-M9N)
-  // neo.setMeasurementRate(40);
-  // neo.setNavigationRate(1);
+  // Set 25Hz data rate (maximum possible for NEO-M9N)
+  neo.setMeasurementRate(40);
+  neo.setNavigationRate(1);
 
-  // neo.saveConfiguration();
+  // Make GNSS track all 4 constellations (GPS, GLONASS, Galileo, BeiDou)
+  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GPS);
+  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GLONASS);
+  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GALILEO);
+  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_BEIDOU);
+
+  neo.saveConfiguration();
 
   gnssIrqSemaphore = xSemaphoreCreateBinary();
   if (gnssIrqSemaphore == NULL) {

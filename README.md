@@ -43,3 +43,6 @@ Use `ESP_LOGI` or `printf` for serial output. There are some issues with `Serial
 `sudo killall python` to terminate all python processes. Happens when the program crashes or debug execution unexpectedly stops, still unsolved (been 3 years)
 
 Issue tracker: https://github.com/platformio/platformio-vscode-ide/issues/2891
+
+# Useful tips/knowledge
+- `ESP_LOGE` will still print to serial even if the program is being debugged via USB.

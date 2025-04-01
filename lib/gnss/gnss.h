@@ -1,7 +1,7 @@
 #ifndef GNSS_H
 #define GNSS_H
 
-#include <SparkFun_u-blox_GNSS_Arduino_Library.h>
+#include <Arduino.h>
 
 void setupGNSS(HardwareSerial &serialPort);
 void gnssInterrupt();
