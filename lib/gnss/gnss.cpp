@@ -12,7 +12,7 @@ SemaphoreHandle_t gnssIrqSemaphore;
 
 void setupGNSS(HardwareSerial &serialPort) {
   if (!neo.begin(serialPort)) {
-    ESP_LOGE(TAG, "Failed to initialize GNSS");
+    ESP_LOGE(TAG, "Could not connect to GNSS through UART");
     while (1);
   }
 
@@ -39,7 +39,7 @@ void setupGNSS(HardwareSerial &serialPort) {
 
   gnssIrqSemaphore = xSemaphoreCreateBinary();
   if (gnssIrqSemaphore == NULL) {
-    ESP_LOGE(TAG, "Failed to initialize GNSS");
+    ESP_LOGE(TAG, "Could not initialize GNSS semaphore");
     while (1);
   }
 
