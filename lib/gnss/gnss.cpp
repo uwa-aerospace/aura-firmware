@@ -35,6 +35,8 @@ void setupGNSS(HardwareSerial &serialPort) {
   neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GALILEO);
   neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_BEIDOU);
 
+  neo.setDynamicModel(DYN_MODEL_AIRBORNE4g);
+
   neo.saveConfiguration();
 
   gnssIrqSemaphore = xSemaphoreCreateBinary();
