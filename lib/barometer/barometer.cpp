@@ -12,6 +12,7 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
 
   if (!barometer.begin()) {
     ESP_LOGE(TAG, "Could not connect to barometer over I2C");
+    return BAROMETER_ERROR;
   }
 
   barometer.setOversampling(OSR_ULTRA_HIGH);
