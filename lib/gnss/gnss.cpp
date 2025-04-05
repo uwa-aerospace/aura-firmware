@@ -1,5 +1,4 @@
 #include "gnss.h"
-#include <Arduino.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
