@@ -1,6 +1,3 @@
-# IMPORTANT: Change board model on platformio.ini when developing on actual flight computer
-Currently using DevKitC to prep drivers and dev environment
-
 # Git rules
 We are using a gitflow workflow: [Gitflow guide here](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
 1. Do NOT merge to `main` without approval of 2 reviewers
