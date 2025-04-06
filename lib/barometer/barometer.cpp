@@ -15,7 +15,8 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
     return BAROMETER_ERROR;
   }
 
-  barometer.setOversampling(OSR_ULTRA_HIGH);
+  barometer.reset(1);
+  barometer.setOversampling(OSR_HIGH);
 
   ESP_LOGI(TAG, "Barometer setup successful");
 
@@ -23,14 +24,16 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
 }
 
 void BarometerTask(void *pvParameters) {
-  if (barometer.read() == MS5611_READ_OK) {
-    float pressure = barometer.getPressure();
+  while (1) {
+    barometer.read();
+    float pressure = barometer.getPressurePascal();
     float temperature = barometer.getTemperature();
 
-    float altitude = 44330.0 * (1.0 - pow(pressure / 1013.25, 0.1903));
+    float altitude = 44330.0 * (1.0 - pow(pressure / 101325, 0.1903));
 
     printf("Temp: %.2f C, Pressure: %.2f hPa, Altitude: %.2f m\n", temperature, pressure, altitude);
+
+    // A read at OSR_HIGH will take 11ms on average, add 9ms extra delay to achieve 20ms (50Hz)
+    vTaskDelay(pdMS_TO_TICKS(9)); 
   }
-  
-  vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz sample rate
 }
