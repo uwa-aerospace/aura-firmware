@@ -6,11 +6,8 @@ uint8_t bPin;
 void shortBeep() {
   digitalWrite(bPin, 1);
   
-  uint32_t start = millis();
-  while (millis() - start < 75) {
-    yield();
-    delay(5);
-  }
+  yield();
+  vTaskDelay(75);
 
   digitalWrite(bPin, 0);
 }
@@ -18,11 +15,8 @@ void shortBeep() {
 void longBeep() {
   digitalWrite(bPin, 1);
 
-  uint32_t start = millis();
-  while (millis() - start < 500) {
-    yield();
-    delay(20);
-  }
+  yield();
+  vTaskDelay(500);
 
   digitalWrite(bPin, 0);
 }
@@ -31,11 +25,8 @@ void shortBeepXTimes(uint8_t times) {
   for (uint8_t i = 0; i < times; i++) {
     shortBeep();
 
-    uint32_t start = millis();
-    while (millis() - start < 200) {
-      yield();
-      delay(20);
-    }
+    yield();
+    vTaskDelay(200);
   }
 }
 
