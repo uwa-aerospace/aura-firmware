@@ -1,5 +1,4 @@
 #include "gnss.h"
-#include <Arduino.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -10,10 +9,10 @@
 SFE_UBLOX_GNSS neo;
 SemaphoreHandle_t gnssIrqSemaphore;
 
-void setupGNSS(HardwareSerial &serialPort) {
+SetupStatus setupGNSS(HardwareSerial &serialPort) {
   if (!neo.begin(serialPort)) {
     ESP_LOGE(TAG, "Could not connect to GNSS through UART");
-    while (1);
+    return GNSS_ERROR;
   }
 
   /* SETTINGS WILL PERSIST ONCE INITIALLY SET UP */
@@ -42,12 +41,14 @@ void setupGNSS(HardwareSerial &serialPort) {
   gnssIrqSemaphore = xSemaphoreCreateBinary();
   if (gnssIrqSemaphore == NULL) {
     ESP_LOGE(TAG, "Could not initialize GNSS semaphore");
-    while (1);
+    return GNSS_ERROR;
   }
 
   serialPort.onReceive(gnssInterrupt);
 
   ESP_LOGI(TAG, "GNSS module setup successful");
+
+  return SETUP_OK;
 }
 
 void gnssInterrupt() {

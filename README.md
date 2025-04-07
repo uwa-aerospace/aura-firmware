@@ -8,8 +8,16 @@ We are using a gitflow workflow: [Gitflow guide here](https://www.atlassian.com/
 1. Install the `PlatformIO IDE` extension on VSCode
 2. Clone this repository
 
-PlatformIO should perform the setup automatically.
+## IMPORTANT NOTICE
+PlatformIO does not support generic ESP32-S3 with 4MB of flash. Uploading a program with `esp32-s3-devkitc-1` default settings will result in a bootloop.
 
+You must navigate to your `.platformio` installation folder, then go to `platforms/espressif32/boards/esp32-s3-devkitc-1.json`
+
+Change `partitions` to `default.csv` and `flash_size` to `4MB`.
+
+[Forum solution is here](https://community.platformio.org/t/changed-chip-not-work-please-help-me/33883).
+
+### How to use the library:
 Click on the (found on bottom bar, or top right):
 - Check icon to compile
 - Arrow icon to upload
