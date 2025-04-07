@@ -1,5 +1,4 @@
 #include "sdcard.h"
-#include "FS.h"
 #include "SD_MMC.h"
 
 #define TAG "SDCARD"

@@ -11,6 +11,7 @@
 #include "gnss.h"
 #include "barometer.h"
 #include "sdcard.h"
+#include "buzzer.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -31,16 +32,9 @@ TaskHandle_t BarometerTaskHandle;
 #define SDIO_D2 17
 #define SDIO_D3 14
 
-#define PROGRAMMABLE_LED 46
+#define BUZZER_PIN 45
 
-bool ledState = false;
-void BlinkTask(void *pvParameters) {
-  while (1) {
-    digitalWrite(LED_BUILTIN, ledState);
-    ledState = !ledState;
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
-}
+#define PROGRAMMABLE_LED 46
 
 void PrintTask(void *pvParameters) {
   while (1) {
@@ -50,36 +44,39 @@ void PrintTask(void *pvParameters) {
 }
 
 void setup() {
-  // Debug essentials
-  // pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
 
   SetupStatus setupStatus = SETUP_OK;
 
   // GNSS SETUP
-  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // Barometer SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
   // SD card SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+
+  // Buzzer SETUP
+  setupBuzzer(BUZZER_PIN);
 
   if (setupStatus != SETUP_OK) {
     ESP_LOGE(SETUP_TAG, "%d", setupStatus);
     
-    // TODO: Properly notify the user by sounding buzzer, blinking LED
+    // Notify user that setup failed
+    shortBeepXTimes(5);
 
     while (1);
   }
+
+  shortBeepXTimes(2);
 
   // Peripheral/component tasks
   // xTaskCreate(GnssTask, "GnssTask", 2048, NULL, 1, &GnssTaskHandle);
   // xTaskCreate(BarometerTask, "BarometerTask", 2560, NULL, 1, &BarometerTaskHandle);
 
   // For alive testing, temporary
-  // xTaskCreate(BlinkTask, "BlinkTask", 2048, NULL, 1, NULL);
   // xTaskCreate(PrintTask, "PrintTask", 2048, NULL, 1, NULL);
 }
 

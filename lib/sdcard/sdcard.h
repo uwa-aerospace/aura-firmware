@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "status.h"
+#include "FS.h"
 
 bool writeFile(fs::FS &fs, const char *path, const char *message);
 bool appendFile(fs::FS &fs, const char *path, const char *message);

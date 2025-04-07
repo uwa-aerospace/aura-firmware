@@ -9,6 +9,10 @@
 SFE_UBLOX_GNSS neo;
 SemaphoreHandle_t gnssIrqSemaphore;
 
+void gnssInterrupt() {
+  xSemaphoreGive(gnssIrqSemaphore);
+}
+
 SetupStatus setupGNSS(HardwareSerial &serialPort) {
   if (!neo.begin(serialPort)) {
     ESP_LOGE(TAG, "Could not connect to GNSS through UART");
@@ -49,10 +53,6 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
   ESP_LOGI(TAG, "GNSS module setup successful");
 
   return SETUP_OK;
-}
-
-void gnssInterrupt() {
-  xSemaphoreGive(gnssIrqSemaphore);
 }
 
 void GnssTask(void *pvParameters) {
