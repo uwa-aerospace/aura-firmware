@@ -2,7 +2,7 @@
 #define GNSS_H
 
 #include <Arduino.h>
-#include "errors.h"
+#include "status.h"
 
 SetupStatus setupGNSS(HardwareSerial &serialPort);
 void gnssInterrupt();

@@ -5,11 +5,12 @@
 #include "esp_log.h"
 
 // Constants
-#include "errors.h"
+#include "status.h"
 
 // Flight computer peripherals
 #include "gnss.h"
 #include "barometer.h"
+#include "sdcard.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -22,6 +23,13 @@ TaskHandle_t GnssTaskHandle;
 #define I2C_SCL 39
 #define I2C_SDA 40
 TaskHandle_t BarometerTaskHandle;
+
+#define SDIO_CMD 13
+#define SDIO_CLK 12
+#define SDIO_D0 11
+#define SDIO_D1 10
+#define SDIO_D2 17
+#define SDIO_D3 14
 
 #define PROGRAMMABLE_LED 46
 
@@ -53,7 +61,10 @@ void setup() {
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // Barometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+
+  // SD card SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
   if (setupStatus != SETUP_OK) {
     ESP_LOGE(SETUP_TAG, "%d", setupStatus);
@@ -65,7 +76,7 @@ void setup() {
 
   // Peripheral/component tasks
   // xTaskCreate(GnssTask, "GnssTask", 2048, NULL, 1, &GnssTaskHandle);
-  xTaskCreate(BarometerTask, "BarometerTask", 2560, NULL, 1, &BarometerTaskHandle);
+  // xTaskCreate(BarometerTask, "BarometerTask", 2560, NULL, 1, &BarometerTaskHandle);
 
   // For alive testing, temporary
   // xTaskCreate(BlinkTask, "BlinkTask", 2048, NULL, 1, NULL);

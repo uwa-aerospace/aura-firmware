@@ -1,9 +1,3 @@
-# Git rules
-We are using a gitflow workflow: [Gitflow guide here](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
-1. Do NOT merge to `main` without approval of 2 reviewers
-2. Merges to `staging` should be reviewed by 1 person
-3. Notify all other developers when pushing/merging to `staging`
-
 # Installation/setup
 1. Install the `PlatformIO IDE` extension on VSCode
 2. Clone this repository
