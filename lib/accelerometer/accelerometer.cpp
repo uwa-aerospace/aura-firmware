@@ -60,8 +60,8 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   lsm6dsm_reset_set(&dev_ctx, PROPERTY_ENABLE);
   vTaskDelay(100);
 
-  lsm6dsm_xl_data_rate_set(&dev_ctx, LSM6DSM_XL_ODR_52Hz);
-  lsm6dsm_gy_data_rate_set(&dev_ctx, LSM6DSM_GY_ODR_52Hz);
+  lsm6dsm_xl_data_rate_set(&dev_ctx, LSM6DSM_XL_ODR_104Hz);
+  lsm6dsm_gy_data_rate_set(&dev_ctx, LSM6DSM_GY_ODR_104Hz);
 
   lsm6dsm_xl_full_scale_set(&dev_ctx, LSM6DSM_16g);
   lsm6dsm_gy_full_scale_set(&dev_ctx, LSM6DSM_2000dps);
@@ -90,6 +90,12 @@ int16_t gyro_raw[3];
 float accel_mg[3];
 float gyro_mdps[3];
 
+uint16_t calCount = 0;
+uint16_t calThreshold = 104;
+bool hasCalibrated = false;
+float gyro_bias_sum[3] = {0.0, 0.0, 0.0};
+float gyro_zero_bias[3];
+
 void AccelerometerTask(void* pvParameters) {
   while (1) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
@@ -103,6 +109,26 @@ void AccelerometerTask(void* pvParameters) {
       gyro_mdps[0] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[0]);
       gyro_mdps[1] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]);
       gyro_mdps[2] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[2]);
+
+      if (calCount < calThreshold) {
+        gyro_bias_sum[0] += gyro_mdps[0];
+        gyro_bias_sum[1] += gyro_mdps[1];
+        gyro_bias_sum[2] += gyro_mdps[2];
+
+        calCount++;
+        continue;
+      }
+
+      if (!hasCalibrated) {
+        gyro_zero_bias[0] = gyro_bias_sum[0] / calCount;
+        gyro_zero_bias[1] = gyro_bias_sum[1] / calCount;
+        gyro_zero_bias[2] = gyro_bias_sum[2] / calCount;
+        hasCalibrated = true;
+      }
+
+      gyro_mdps[0] -= gyro_zero_bias[0];
+      gyro_mdps[1] -= gyro_zero_bias[1];
+      gyro_mdps[2] -= gyro_zero_bias[2];
 
       printf("Accel [mg]: X=%.2f Y=%.2f Z=%.2f\n", accel_mg[0], accel_mg[1], accel_mg[2]);
       printf("Gyro [mdps]: X=%.2f Y=%.2f Z=%.2f\n\n", gyro_mdps[0], gyro_mdps[1], gyro_mdps[2]);
