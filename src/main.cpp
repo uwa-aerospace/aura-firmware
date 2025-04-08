@@ -12,6 +12,7 @@
 #include "barometer.h"
 #include "sdcard.h"
 #include "buzzer.h"
+#include "accelerometer.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -32,6 +33,14 @@ TaskHandle_t BarometerTaskHandle;
 #define SDIO_D2 17
 #define SDIO_D3 14
 
+#define SPI_SCK 2
+#define SPI_MISO 4
+#define SPI_MOSI 1
+
+#define ACCEL_CS 0
+#define ACCEL_INT 6
+TaskHandle_t AccelerometerTaskHandle;
+
 #define BUZZER_PIN 45
 
 #define PROGRAMMABLE_LED 46
@@ -48,15 +57,18 @@ void setup() {
 
   SetupStatus setupStatus = SETUP_OK;
 
-  // GNSS SETUP
-  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  // // GNSS SETUP
+  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
-  // Barometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  // // Barometer SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
-  // SD card SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+  // // SD card SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+
+  // Accelerometer SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
 
   // Buzzer SETUP
   setupBuzzer(BUZZER_PIN);
@@ -67,14 +79,15 @@ void setup() {
     // Notify user that setup failed
     shortBeepXTimes(5);
 
-    while (1);
+    while (1); // Do not proceed with execution
   }
 
   shortBeepXTimes(2);
 
   // Peripheral/component tasks
-  // xTaskCreate(GnssTask, "GnssTask", 2048, NULL, 1, &GnssTaskHandle);
-  // xTaskCreate(BarometerTask, "BarometerTask", 2560, NULL, 1, &BarometerTaskHandle);
+  // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 1, &GnssTaskHandle);
+  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 1, &BarometerTaskHandle);
+  xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 1, &AccelerometerTaskHandle);
 
   // For alive testing, temporary
   // xTaskCreate(PrintTask, "PrintTask", 2048, NULL, 1, NULL);

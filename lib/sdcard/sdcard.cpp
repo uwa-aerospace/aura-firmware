@@ -105,5 +105,6 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
     return SDCARD_ERROR;
   }
 
+  ESP_LOGI(TAG, "SD card setup successful");
   return SETUP_OK;
 }

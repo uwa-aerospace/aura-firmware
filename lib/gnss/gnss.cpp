@@ -9,7 +9,7 @@
 SFE_UBLOX_GNSS neo;
 SemaphoreHandle_t gnssIrqSemaphore;
 
-void gnssInterrupt() {
+void IRAM_ATTR gnssInterrupt() {
   xSemaphoreGive(gnssIrqSemaphore);
 }
 

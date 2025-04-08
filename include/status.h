@@ -6,6 +6,7 @@ enum SetupStatus : uint8_t {
     GNSS_ERROR      = 1 << 1,
     BAROMETER_ERROR = 1 << 2,
     SDCARD_ERROR    = 1 << 3,
+    ACCEL_ERROR     = 1 << 4,
 };
 
 #endif
