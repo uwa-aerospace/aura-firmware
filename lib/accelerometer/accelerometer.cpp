@@ -96,9 +96,9 @@ void AccelerometerTask(void* pvParameters) {
       lsm6dsm_acceleration_raw_get(&dev_ctx, accel_raw);
       lsm6dsm_angular_rate_raw_get(&dev_ctx, gyro_raw);
 
-      accel_mg[0] = lsm6dsm_from_fs2g_to_mg(accel_raw[0]);
-      accel_mg[1] = lsm6dsm_from_fs2g_to_mg(accel_raw[1]);
-      accel_mg[2] = lsm6dsm_from_fs2g_to_mg(accel_raw[2]);
+      accel_mg[0] = lsm6dsm_from_fs16g_to_mg(accel_raw[0]);
+      accel_mg[1] = lsm6dsm_from_fs16g_to_mg(accel_raw[1]);
+      accel_mg[2] = lsm6dsm_from_fs16g_to_mg(accel_raw[2]);
 
       gyro_mdps[0] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[0]);
       gyro_mdps[1] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]);
