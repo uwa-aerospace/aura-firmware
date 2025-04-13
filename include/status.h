@@ -7,6 +7,7 @@ enum SetupStatus : uint8_t {
     BAROMETER_ERROR = 1 << 2,
     SDCARD_ERROR    = 1 << 3,
     ACCEL_ERROR     = 1 << 4,
+    RADIO_ERROR     = 1 << 5,
 };
 
 #endif

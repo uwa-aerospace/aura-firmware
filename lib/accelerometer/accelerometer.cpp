@@ -31,7 +31,7 @@ int32_t platform_read(void *ctx, uint8_t reg, uint8_t *bufp, uint16_t len) {
 }
 
 SemaphoreHandle_t accelIrqSemaphore;
-void IRAM_ATTR accelInterrupt() {
+void IRAM_ATTR accelInterrupt(void) {
   xSemaphoreGive(accelIrqSemaphore);
 }
 
@@ -66,6 +66,9 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   lsm6dsm_xl_full_scale_set(&dev_ctx, LSM6DSM_16g);
   lsm6dsm_gy_full_scale_set(&dev_ctx, LSM6DSM_2000dps);
 
+  lsm6dsm_xl_power_mode_set(&dev_ctx, LSM6DSM_XL_HIGH_PERFORMANCE);
+  lsm6dsm_gy_power_mode_set(&dev_ctx, LSM6DSM_GY_HIGH_PERFORMANCE);
+
   lsm6dsm_int2_route_t int2_route;
   lsm6dsm_pin_int2_route_get(&dev_ctx, &int2_route);
   int2_route.int2_drdy_xl = PROPERTY_ENABLE;
@@ -86,13 +89,18 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
 
 int16_t accel_raw[3];
 int16_t gyro_raw[3];
+int16_t temp_raw[1];
 
 float accel_mg[3];
 float gyro_mdps[3];
+float temp_c[1];
 
 uint16_t calCount = 0;
-uint16_t calThreshold = 104;
+uint16_t secondCalCount = 0;
+uint16_t calStart = 20;
+uint16_t calThreshold = 200;
 bool hasCalibrated = false;
+
 float gyro_bias_sum[3] = {0.0, 0.0, 0.0};
 float gyro_zero_bias[3];
 
@@ -101,6 +109,7 @@ void AccelerometerTask(void* pvParameters) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
       lsm6dsm_acceleration_raw_get(&dev_ctx, accel_raw);
       lsm6dsm_angular_rate_raw_get(&dev_ctx, gyro_raw);
+      lsm6dsm_temperature_raw_get(&dev_ctx, temp_raw);
 
       accel_mg[0] = lsm6dsm_from_fs16g_to_mg(accel_raw[0]);
       accel_mg[1] = lsm6dsm_from_fs16g_to_mg(accel_raw[1]);
@@ -110,19 +119,24 @@ void AccelerometerTask(void* pvParameters) {
       gyro_mdps[1] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]);
       gyro_mdps[2] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[2]);
 
+      temp_c[0] = lsm6dsm_from_lsb_to_celsius(temp_raw[0]);
+
       if (calCount < calThreshold) {
-        gyro_bias_sum[0] += gyro_mdps[0];
-        gyro_bias_sum[1] += gyro_mdps[1];
-        gyro_bias_sum[2] += gyro_mdps[2];
+        if (calCount > calStart) {
+          gyro_bias_sum[0] += gyro_mdps[0];
+          gyro_bias_sum[1] += gyro_mdps[1];
+          gyro_bias_sum[2] += gyro_mdps[2];
+          secondCalCount++;
+        }
 
         calCount++;
         continue;
       }
 
       if (!hasCalibrated) {
-        gyro_zero_bias[0] = gyro_bias_sum[0] / calCount;
-        gyro_zero_bias[1] = gyro_bias_sum[1] / calCount;
-        gyro_zero_bias[2] = gyro_bias_sum[2] / calCount;
+        gyro_zero_bias[0] = gyro_bias_sum[0] / secondCalCount;
+        gyro_zero_bias[1] = gyro_bias_sum[1] / secondCalCount;
+        gyro_zero_bias[2] = gyro_bias_sum[2] / secondCalCount;
         hasCalibrated = true;
       }
 
@@ -130,8 +144,15 @@ void AccelerometerTask(void* pvParameters) {
       gyro_mdps[1] -= gyro_zero_bias[1];
       gyro_mdps[2] -= gyro_zero_bias[2];
 
-      printf("Accel [mg]: X=%.2f Y=%.2f Z=%.2f\n", accel_mg[0], accel_mg[1], accel_mg[2]);
-      printf("Gyro [mdps]: X=%.2f Y=%.2f Z=%.2f\n\n", gyro_mdps[0], gyro_mdps[1], gyro_mdps[2]);
+      // printf("Accel [mg]: X=%.2f Y=%.2f Z=%.2f\n", accel_mg[0], accel_mg[1], accel_mg[2]);
+      // printf("Gyro [mdps]: X=%.2f Y=%.2f Z=%.2f\n\n", gyro_mdps[0], gyro_mdps[1], gyro_mdps[2]);
+      // printf(">accelX:%f\n", accel_mg[0]);
+      // printf(">accelY:%f\n", accel_mg[1]);
+      // printf(">accelZ:%f\n", accel_mg[2]);
+      printf(">gyroX:%f\n", gyro_mdps[0]);
+      printf(">gyroY:%f\n", gyro_mdps[1]);
+      printf(">gyroZ:%f\n", gyro_mdps[2]);
+      // printf(">temp:%f\n", temp_c[0]);
     }
   }
 }

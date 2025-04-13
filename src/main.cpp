@@ -13,6 +13,7 @@
 #include "sdcard.h"
 #include "buzzer.h"
 #include "accelerometer.h"
+#include "radio.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -41,19 +42,16 @@ TaskHandle_t BarometerTaskHandle;
 #define ACCEL_INT 6
 TaskHandle_t AccelerometerTaskHandle;
 
+#define RADIO_CS 9
+#define RADIO_INT 8
+#define RADIO_BUSY 7
+
 #define BUZZER_PIN 45
 
 #define PROGRAMMABLE_LED 46
 
-void PrintTask(void *pvParameters) {
-  while (1) {
-    printf("Hello platformio\n");
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
-}
-
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(460800);
 
   SetupStatus setupStatus = SETUP_OK;
 
@@ -67,8 +65,11 @@ void setup() {
   // // SD card SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
-  // Accelerometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
+  // // Accelerometer SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
+
+  // Radio SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
 
   // Buzzer SETUP
   setupBuzzer(BUZZER_PIN);
@@ -82,15 +83,13 @@ void setup() {
     while (1); // Do not proceed with execution
   }
 
-  shortBeepXTimes(2);
+  // shortBeepXTimes(1);
 
   // Peripheral/component tasks
   // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 1, &GnssTaskHandle);
   // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 1, &BarometerTaskHandle);
-  xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 1, &AccelerometerTaskHandle);
-
-  // For alive testing, temporary
-  // xTaskCreate(PrintTask, "PrintTask", 2048, NULL, 1, NULL);
+  // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 1, &AccelerometerTaskHandle);
+  xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 1, NULL);
 }
 
 void loop() {
