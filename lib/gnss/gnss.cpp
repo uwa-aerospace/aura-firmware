@@ -20,14 +20,11 @@ void IRAM_ATTR gnssInterrupt(void) {
 }
 
 void gnssRxErrorCallback(hardwareSerial_error_t error) {
-  // For emergencies in case the interrupt is unable to flush FIFO
-  if (error == UART_FIFO_OVF_ERROR || error == UART_BUFFER_FULL_ERROR) {
-    ESP_LOGW(TAG, "UART2 FIFO Full or Overflowing: %d", error);
+  // In case GnssTask gets blocked after startup and FIFO overflows
+  if (error == UART_FIFO_OVF_ERROR || error == UART_BUFFER_FULL_ERROR)
     uart_flush_input(UART_NUM_2);
-  }
-  else {
+  else
     ESP_LOGW(TAG, "UART2 error: %d", error);
-  }
 }
 
 SetupStatus setupGNSS(HardwareSerial &serialPort) {
