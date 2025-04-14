@@ -2,6 +2,7 @@
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "driver/uart.h"
 #include "esp_log.h"
 
 #define TAG "GNSS"
@@ -9,8 +10,24 @@
 SFE_UBLOX_GNSS neo;
 SemaphoreHandle_t gnssIrqSemaphore;
 
+volatile bool gnssTaskStarted = false;
 void IRAM_ATTR gnssInterrupt(void) {
+  // Clear UART FIFO until GnssTask starts, prevents FIFO overflow
+  if (!gnssTaskStarted) {
+    uart_flush_input(UART_NUM_2);
+  }
   xSemaphoreGive(gnssIrqSemaphore);
+}
+
+void gnssRxErrorCallback(hardwareSerial_error_t error) {
+  // For emergencies in case the interrupt is unable to flush FIFO
+  if (error == UART_FIFO_OVF_ERROR || error == UART_BUFFER_FULL_ERROR) {
+    ESP_LOGW(TAG, "UART2 FIFO Full or Overflowing: %d", error);
+    uart_flush_input(UART_NUM_2);
+  }
+  else {
+    ESP_LOGW(TAG, "UART2 error: %d", error);
+  }
 }
 
 SetupStatus setupGNSS(HardwareSerial &serialPort) {
@@ -19,29 +36,15 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
     return GNSS_ERROR;
   }
 
-  /* SETTINGS WILL PERSIST ONCE INITIALLY SET UP */
-
-  // Increase baud rate to accommodate higher data rate
-  neo.setSerialRate(460800);
-  serialPort.updateBaudRate(460800);
-
-  // UBX is more efficient
-  neo.setUART1Output(COM_TYPE_UBX);
-
-  // Set 25Hz data rate (maximum possible for NEO-M9N)
-  neo.setMeasurementRate(40);
-  neo.setNavigationRate(1);
-
-  // Make GNSS track all 4 constellations (GPS, GLONASS, Galileo, BeiDou)
-  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GPS);
-  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GLONASS);
-  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_GALILEO);
-  neo.enableGNSS(true, SFE_UBLOX_GNSS_ID_BEIDOU);
-
-  neo.setDynamicModel(DYN_MODEL_AIRBORNE4g);
-
-  neo.saveConfiguration();
-
+  /* No setup required, GNSS settings are saved to BBR and flash, and persist between startups */
+  /* Setup reqs:
+   * 460800 baudrate
+   * UBX transmission
+   * 40ms MEASurement rate, 1 Navigation rate - achieves 25Hz ODR
+   * 4 constellation tracking (GPS, GLONASS, Galileo, BeiDou)
+   * AIRBORNE_4g dynamic model - CFG-NAV5
+  */
+  
   gnssIrqSemaphore = xSemaphoreCreateBinary();
   if (gnssIrqSemaphore == NULL) {
     ESP_LOGE(TAG, "Could not initialize GNSS semaphore");
@@ -49,6 +52,7 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
   }
 
   serialPort.onReceive(gnssInterrupt);
+  serialPort.onReceiveError(gnssRxErrorCallback);
 
   ESP_LOGI(TAG, "GNSS module setup successful");
 
@@ -56,6 +60,9 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
 }
 
 void GnssTask(void *pvParameters) {
+  // Task is ready to receive data, tell RX interrupt to stop flushing FIFO
+  gnssTaskStarted = true;
+
   while (1) {
     if (xSemaphoreTake(gnssIrqSemaphore, portMAX_DELAY) == pdTRUE) {
       if (neo.getPVT()) {
@@ -68,11 +75,17 @@ void GnssTask(void *pvParameters) {
         int hour = neo.getHour();
         int minute = neo.getMinute();
         int second = neo.getSecond();
+        int32_t lt = neo.getLatitude();
+        int32_t ln = neo.getLongitude();
+        int32_t al = neo.getAltitudeMSL();
+        float lat = lt / 10000000.0;
+        float lng = ln / 10000000.0;
+        float alt = al / 1000.0;
 
         uint32_t delta = gpsTimeMs - lastTime;
         // if (delta != 40)
-        ESP_LOGI("GNSS", "Date & Time: %04d-%02d-%02d %02d:%02d:%02d UTC, GPS Time: %lu ms, Delta: %lu ms", year, month, day, hour, minute, second, gpsTimeMs, delta);
-
+        // ESP_LOGI(TAG, "Date & Time: %04d-%02d-%02d %02d:%02d:%02d UTC, GPS Time: %lu ms, Delta: %lu ms", year, month, day, hour, minute, second, gpsTimeMs, delta);
+        ESP_LOGI(TAG, "Lat: %.6f, Lng: %.6f, Alt: %.2f, Delta: %lu ms", lat, lng, alt, delta);
         lastTime = gpsTimeMs;
       }
     }

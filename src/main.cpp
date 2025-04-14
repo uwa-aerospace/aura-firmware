@@ -56,8 +56,8 @@ void setup() {
   SetupStatus setupStatus = SETUP_OK;
 
   // // GNSS SETUP
-  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // // Barometer SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
@@ -68,8 +68,8 @@ void setup() {
   // // Accelerometer SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
 
-  // Radio SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
+  // // Radio SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
 
   // Buzzer SETUP
   setupBuzzer(BUZZER_PIN);
@@ -86,10 +86,10 @@ void setup() {
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks
-  // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 1, &GnssTaskHandle);
+  xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 1, &GnssTaskHandle);
   // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 1, &BarometerTaskHandle);
   // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 1, &AccelerometerTaskHandle);
-  xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 1, NULL);
+  // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 1, NULL);
 }
 
 void loop() {
