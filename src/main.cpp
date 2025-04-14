@@ -1,5 +1,10 @@
 #include <Arduino.h>
+
 #include <WiFi.h>
+#include "esp_bt.h"
+#include "esp_wifi.h"
+#include "esp_log.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -53,6 +58,15 @@ TaskHandle_t AccelerometerTaskHandle;
 void setup() {
   Serial.begin(460800);
 
+  // Disable WiFi and BLE to save power
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  esp_wifi_deinit();
+
+  esp_bt_controller_disable();
+  esp_bt_controller_deinit();
+  esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+
   SetupStatus setupStatus = SETUP_OK;
 
   // // GNSS SETUP
@@ -86,10 +100,10 @@ void setup() {
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks
-  xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 1, &GnssTaskHandle);
-  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 1, &BarometerTaskHandle);
-  // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 1, &AccelerometerTaskHandle);
-  // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 1, NULL);
+  xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
+  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
+  // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 2, &AccelerometerTaskHandle);
+  // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 }
 
 void loop() {
