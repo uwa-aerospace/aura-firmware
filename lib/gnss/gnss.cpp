@@ -19,12 +19,10 @@ void IRAM_ATTR gnssInterrupt(void) {
   xSemaphoreGive(gnssIrqSemaphore);
 }
 
-void gnssRxErrorCallback(hardwareSerial_error_t error) {
+void IRAM_ATTR gnssRxErrorCallback(hardwareSerial_error_t error) {
   // In case GnssTask gets blocked after startup and FIFO overflows
   if (error == UART_FIFO_OVF_ERROR || error == UART_BUFFER_FULL_ERROR)
     uart_flush_input(UART_NUM_2);
-  else
-    ESP_LOGW(TAG, "UART2 error: %d", error);
 }
 
 SetupStatus setupGNSS(HardwareSerial &serialPort) {
@@ -41,6 +39,19 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
    * 4 constellation tracking (GPS, GLONASS, Galileo, BeiDou)
    * AIRBORNE_4g dynamic model - CFG-NAV5
   */
+
+  /* Cannot validate constellations tracked, all settings not checked below are self-validated */
+  uint16_t measurementRate = neo.getMeasurementRate();
+  if (measurementRate != 40) {
+    ESP_LOGE(TAG, "GNSS update rate is not 25Hz");
+    return GNSS_ERROR;
+  }
+
+  uint8_t dynamicModel = neo.getDynamicModel();
+  if (dynamicModel != DYN_MODEL_AIRBORNE4g) {
+    ESP_LOGE(TAG, "Incorrect dynamic model");
+    return GNSS_ERROR;
+  }
   
   gnssIrqSemaphore = xSemaphoreCreateBinary();
   if (gnssIrqSemaphore == NULL) {
@@ -62,28 +73,31 @@ void GnssTask(void *pvParameters) {
 
   while (1) {
     if (xSemaphoreTake(gnssIrqSemaphore, portMAX_DELAY) == pdTRUE) {
-      if (neo.getPVT()) {
-        uint32_t gpsTimeMs = neo.getTimeOfWeek();
-        static uint32_t lastTime = 0;
-
-        int year = neo.getYear();
-        int month = neo.getMonth();
-        int day = neo.getDay();
-        int hour = neo.getHour();
-        int minute = neo.getMinute();
-        int second = neo.getSecond();
-        int32_t lt = neo.getLatitude();
-        int32_t ln = neo.getLongitude();
-        int32_t al = neo.getAltitudeMSL();
-        float lat = lt / 10000000.0;
-        float lng = ln / 10000000.0;
-        float alt = al / 1000.0;
-
-        uint32_t delta = gpsTimeMs - lastTime;
-        // if (delta != 40)
-        // ESP_LOGI(TAG, "Date & Time: %04d-%02d-%02d %02d:%02d:%02d UTC, GPS Time: %lu ms, Delta: %lu ms", year, month, day, hour, minute, second, gpsTimeMs, delta);
-        ESP_LOGI(TAG, "Lat: %.6f, Lng: %.6f, Alt: %.2f, Delta: %lu ms", lat, lng, alt, delta);
-        lastTime = gpsTimeMs;
+      // Allows processing of multiple messages at once
+      while (neo.checkUblox()) {
+        if (neo.getPVT()) {
+          uint32_t gpsTimeMs = neo.getTimeOfWeek();
+          static uint32_t lastTime = 0;
+  
+          int year = neo.getYear();
+          int month = neo.getMonth();
+          int day = neo.getDay();
+          int hour = neo.getHour();
+          int minute = neo.getMinute();
+          int second = neo.getSecond();
+          int32_t lt = neo.getLatitude();
+          int32_t ln = neo.getLongitude();
+          int32_t al = neo.getAltitudeMSL();
+          float lat = lt / 10000000.0;
+          float lng = ln / 10000000.0;
+          float alt = al / 1000.0;
+  
+          uint32_t delta = gpsTimeMs - lastTime;
+          // if (delta != 40)
+          // ESP_LOGI(TAG, "Date & Time: %04d-%02d-%02d %02d:%02d:%02d UTC, GPS Time: %lu ms, Delta: %lu ms", year, month, day, hour, minute, second, gpsTimeMs, delta);
+          ESP_LOGI(TAG, "Lat: %.6f, Lng: %.6f, Alt: %.2f, Delta: %lu ms", lat, lng, alt, delta);
+          lastTime = gpsTimeMs;
+        }
       }
     }
   }
