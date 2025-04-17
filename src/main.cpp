@@ -80,7 +80,7 @@ void setup() {
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // // Barometer SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
   // // SD card SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
@@ -110,7 +110,7 @@ void setup() {
 
   // Peripheral/component tasks
   // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
-  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
+  xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 2, &AccelerometerTaskHandle);
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 }
