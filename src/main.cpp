@@ -19,6 +19,7 @@
 #include "buzzer.h"
 #include "accelerometer.h"
 #include "radio.h"
+#include "pyro.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -51,6 +52,11 @@ TaskHandle_t AccelerometerTaskHandle;
 #define RADIO_INT 8
 #define RADIO_BUSY 7
 
+#define PYRO1 37
+#define PYRO2 35
+#define PYRO3 34
+#define PYRO4 33
+
 #define BUZZER_PIN 45
 
 #define PROGRAMMABLE_LED 46
@@ -70,8 +76,8 @@ void setup() {
   SetupStatus setupStatus = SETUP_OK;
 
   // // GNSS SETUP
-  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // // Barometer SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
@@ -85,6 +91,9 @@ void setup() {
   // // Radio SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
 
+  // // Pyro SETUP
+  setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
+
   // Buzzer SETUP
   setupBuzzer(BUZZER_PIN);
 
@@ -96,11 +105,11 @@ void setup() {
 
     while (1); // Do not proceed with execution
   }
-
+ 
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks
-  xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
+  // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
   // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 2, &AccelerometerTaskHandle);
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
