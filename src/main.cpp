@@ -39,6 +39,7 @@ TaskHandle_t BarometerTaskHandle;
 #define SDIO_D1 10
 #define SDIO_D2 17
 #define SDIO_D3 14
+TaskHandle_t LoggingTaskHandle;
 
 #define SPI_SCK 2
 #define SPI_MISO 4
@@ -83,7 +84,7 @@ void setup() {
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
   // // SD card SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
   // // Accelerometer SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
@@ -113,6 +114,8 @@ void setup() {
   // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
+
+  xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
 }
 
 void loop() {

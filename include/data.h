@@ -17,11 +17,14 @@ extern FlightState flightState;
 // Acceleration in m/s^2
 extern vec3_t accelMs;
 
-// Gyro angular rate in deg/s, corrected for zero-rate bias
+// Gyro angular rate in deg/s
 extern vec3_t gyroDps;
 
 // Acceleration in world frame
 extern vec3_t accelCorrected;
+
+// Gyro angular rates corrected for zero-rate bias
+extern vec3_t gyroCorrected;
 
 extern quat_t attitudeQuatn;
 extern float tiltAngle;

@@ -3,6 +3,7 @@
 #include "lsm6dsm_reg.h"
 
 #include "accelerometer.h"
+#include "sdcard.h"
 #include "data.h"
 #include "vector_type.h"
 #include "quaternion_type.h"
@@ -77,6 +78,7 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   lsm6dsm_pin_int2_route_get(&dev_ctx, &int2_route);
   int2_route.int2_drdy_g = PROPERTY_ENABLE;
   lsm6dsm_pin_int2_route_set(&dev_ctx, int2_route);
+  lsm6dsm_int_notification_set(&dev_ctx, LSM6DSM_INT_PULSED);
 
   accelIrqSemaphore = xSemaphoreCreateBinary();
   if (accelIrqSemaphore == NULL) {
@@ -187,8 +189,8 @@ void AccelerometerTask(void* pvParameters) {
       accelVertVel += accelCorrected.z * dt;
 
       // Gyro integration to orientation quaternion
-      gyroDps -= gyroBiases;
-      gyroRadsPerSec = gyroDps * TO_RADIANS;
+      gyroCorrected = gyroDps - gyroBiases;
+      gyroRadsPerSec = gyroCorrected * TO_RADIANS;
 
       vec3_t deltaAngle = gyroRadsPerSec * dt;
       float angle = deltaAngle.mag();
@@ -203,12 +205,15 @@ void AccelerometerTask(void* pvParameters) {
         attitudeQuatn = attitudeQuatn.norm();
       }
 
+      xEventGroupSetBits(loggingEventGroup, IMU_LOGGING_BIT);
+
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", accelMs.x, accelMs.y, accelMs.z);
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\tV:%.2f\n", accelCorrected.x, accelCorrected.y, accelCorrected.z, accelVertVel);
       // printf(">Vvel:%.2f\n", accelVertVel);
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", gyroDps.x, gyroDps.y, gyroDps.z);
       // printf("W:%2f\tX:%.2f\tY:%.2f\tZ:%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
-      printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
+      // printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
+      // printf("dt:%.2f\n", dt*1e+3);
     }
   }
 }
