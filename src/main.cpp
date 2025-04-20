@@ -11,6 +11,7 @@
 
 // Constants
 #include "status.h"
+#include "data.h"
 
 // Flight computer peripherals
 #include "gnss.h"
@@ -62,6 +63,8 @@ TaskHandle_t AccelerometerTaskHandle;
 
 #define PROGRAMMABLE_LED 46
 
+EventGroupHandle_t sensorEventGroup;
+
 void setup() {
   Serial.begin(460800);
 
@@ -97,6 +100,12 @@ void setup() {
 
   // Buzzer SETUP
   setupBuzzer(BUZZER_PIN);
+
+  sensorEventGroup = xEventGroupCreate();
+  if (sensorEventGroup == NULL) {
+    ESP_LOGE(SETUP_TAG, "Could not initialize sensor event group");
+    setupStatus = SDCARD_ERROR;
+  }
 
   if (setupStatus != SETUP_OK) {
     ESP_LOGE(SETUP_TAG, "%d", setupStatus);

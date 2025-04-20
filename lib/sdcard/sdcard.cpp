@@ -71,8 +71,6 @@ void incrementLogPath(char* logPath) {
 char logPath[sizeof(BASE_DIR_NAME) + 4] = BASE_DIR_NAME "0000";
 char filePath[2 * sizeof(logPath) + 3];
 
-EventGroupHandle_t loggingEventGroup;
-
 SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3) {
   if (!SD_MMC.setPins(clk, cmd, d0, d1, d2, d3)) {
     ESP_LOGE(TAG, "Failed to change SD card pins");
@@ -117,12 +115,6 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
   if (!writeFile(SD_MMC, filePath, header)) {
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
-  }
-
-  loggingEventGroup = xEventGroupCreate();
-  if (loggingEventGroup == NULL) {
-    ESP_LOGE(TAG, "Could not initialize logging event group");
-    return RADIO_ERROR;
   }
 
   ESP_LOGI(TAG, "SD card setup successful");
@@ -201,8 +193,8 @@ void LoggingTask(void* pvParameters) {
   openLogFile(SD_MMC, filePath);
   while (1) {
     EventBits_t bits = xEventGroupWaitBits(
-      loggingEventGroup,
-      IMU_LOGGING_BIT | BARO_LOGGING_BIT | GNSS_LOGGING_BIT,
+      sensorEventGroup,
+      IMU_SENSOR_EVENT | BARO_SENSOR_EVENT | GNSS_SENSOR_EVENT,
       pdTRUE,
       pdFALSE,
       portMAX_DELAY

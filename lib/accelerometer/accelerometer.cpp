@@ -217,7 +217,7 @@ void AccelerometerTask(void* pvParameters) {
         attitudeQuatn = attitudeQuatn.norm();
       }
 
-      xEventGroupSetBits(loggingEventGroup, IMU_LOGGING_BIT);
+      xEventGroupSetBits(sensorEventGroup, IMU_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
       if (calCount >= 4160 && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
@@ -233,7 +233,7 @@ void AccelerometerTask(void* pvParameters) {
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", gyroDps.x, gyroDps.y, gyroDps.z);
       // printf("W:%2f\tX:%.2f\tY:%.2f\tZ:%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
       // printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
-      // printf("dt:%.2f\n", dt*1e+3);
+      // printf(">dt:%.2f\n", dt*1e+3);
     }
   }
 }
