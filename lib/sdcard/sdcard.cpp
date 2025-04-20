@@ -1,6 +1,5 @@
 #include "sdcard.h"
 #include "SD_MMC.h"
-#include "esp_system.h"
 
 #include "vector_type.h"
 #include "data.h"
@@ -58,8 +57,8 @@ bool appendToOpenFile(const char *message) {
   return false;
 }
 
-void closeLogFile() {
-  if (logFile) logFile.close();
+void flushLogFile() {
+  if (logFile) logFile.flush();
 }
 
 void incrementLogPath(char* logPath) {
@@ -125,10 +124,6 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
     ESP_LOGE(TAG, "Could not initialize logging event group");
     return RADIO_ERROR;
   }
-  
-  esp_register_shutdown_handler([](){
-    closeLogFile();
-  });
 
   ESP_LOGI(TAG, "SD card setup successful");
   return SETUP_OK;
@@ -247,9 +242,8 @@ void LoggingTask(void* pvParameters) {
     appendToOpenFile(dataString);
     strPosn = 0;
 
-    if (numLogs > 4000) {
-      closeLogFile();
-      openLogFile(SD_MMC, filePath);
+    if (numLogs > 4000) { // Save to file every ~10 seconds
+      flushLogFile();
       numLogs = 0;
     }
     
