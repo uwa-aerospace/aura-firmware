@@ -235,7 +235,7 @@ void LoggingTask(void* pvParameters) {
     writeFloatData(attitudeQuatn.v.y, 5);
     writeFloatData(attitudeQuatn.v.z, 5);
 
-    dataString[strPosn] = '\r'; strPosn++;
+    strPosn--;
     dataString[strPosn] = '\n'; strPosn++;
     dataString[strPosn] = '\0';
 

@@ -110,7 +110,9 @@ vec3_t gyroBiases(0,0,0);
 vec3_t gyroRadsPerSec;
 float accelGravityOffset = 0;
 
-bool calComplete = false;
+bool shouldCal = true;
+bool initialCalibration = false;
+uint32_t calCount = 0;
 
 void setGravityRotQuatn() {
   accelCalibrationSums /= samplesRequired;
@@ -146,7 +148,6 @@ void setGravityRotQuatn() {
 uint64_t lastMeasurement;
 
 void AccelerometerTask(void* pvParameters) {
-  lastMeasurement = micros();
   while (1) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
       lsm6dsm_acceleration_raw_get(&dev_ctx, accel_raw);
@@ -160,22 +161,33 @@ void AccelerometerTask(void* pvParameters) {
       gyroDps.y = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]) * 1e-3;
       gyroDps.z = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[2]) * 1e-3;
 
-      if (flightState == FLIGHT_ARMED && !calComplete) {
+      if (flightState == FLIGHT_ARMED && shouldCal) {
         if (samplesCollected < samplesRequired) {
           accelCalibrationSums += accelMs;
           gyroCalibrationSums += gyroDps;
           samplesCollected++;
         }
-        else {
+        // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
+        else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
           setGravityRotQuatn();
+          accelCalibrationSums = vec3_t(0,0,0);
+          accelVertVel = 0;
+          
           gyroCalibrationSums /= samplesRequired;
           gyroBiases = gyroCalibrationSums;
-          calComplete = true;
+          gyroCalibrationSums = vec3_t(0,0,0);
+          attitudeQuatn = quat_t(1,0,0,0);
+
+          shouldCal = false;
+          samplesCollected = 0;
+          initialCalibration = true;
+
+          lastMeasurement = micros();
         }
       }
 
       // Do not process if accel has not been calibrated
-      if (!calComplete) continue;
+      if (!initialCalibration) continue;
       
       uint64_t now = micros();
       float dt = (now - lastMeasurement) * 1e-6;
@@ -206,6 +218,14 @@ void AccelerometerTask(void* pvParameters) {
       }
 
       xEventGroupSetBits(loggingEventGroup, IMU_LOGGING_BIT);
+
+      // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
+      if (calCount >= 4160 && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+        shouldCal = true;
+        calCount = 0;
+      }
+
+      if (flightState == FLIGHT_ARMED && !shouldCal) calCount++;
 
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", accelMs.x, accelMs.y, accelMs.z);
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\tV:%.2f\n", accelCorrected.x, accelCorrected.y, accelCorrected.z, accelVertVel);
