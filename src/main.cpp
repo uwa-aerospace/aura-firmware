@@ -1,9 +1,9 @@
 #include <Arduino.h>
 
-#include <WiFi.h>
-#include "esp_bt.h"
-#include "esp_wifi.h"
-#include "esp_log.h"
+// #include <WiFi.h>
+// #include "esp_bt.h"
+// #include "esp_wifi.h"
+// #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -65,13 +65,13 @@ void setup() {
   Serial.begin(460800);
 
   // Disable WiFi and BLE to save power
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-  esp_wifi_deinit();
+  // WiFi.disconnect(true);
+  // WiFi.mode(WIFI_OFF);
+  // esp_wifi_deinit();
 
-  esp_bt_controller_disable();
-  esp_bt_controller_deinit();
-  esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+  // esp_bt_controller_disable();
+  // esp_bt_controller_deinit();
+  // esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
 
   SetupStatus setupStatus = SETUP_OK;
 
@@ -80,13 +80,13 @@ void setup() {
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // // Barometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
   // // SD card SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
   // // Accelerometer SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
 
   // // Radio SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
@@ -110,8 +110,8 @@ void setup() {
 
   // Peripheral/component tasks
   // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
-  xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
-  // xTaskCreate(AccelerometerTask, "AccelerometerTask", 4096, NULL, 2, &AccelerometerTaskHandle);
+  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
+  xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 }
 

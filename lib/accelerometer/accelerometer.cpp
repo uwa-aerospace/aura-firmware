@@ -1,11 +1,15 @@
-#include "accelerometer.h"
-#include "lsm6dsm_reg.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 #include <Arduino.h>
 #include "SPI.h"
+#include "lsm6dsm_reg.h"
+
+#include "accelerometer.h"
+#include "data.h"
+#include "vector_type.h"
+#include "quaternion_type.h"
 
 #define TAG "ACCELEROMETER"
+#define GRAVITY_ACCEL 9.80665
+#define TO_RADIANS (PI / 180)
 
 SPIClass* accelSpi = &SPI;
 uint8_t accelCsPin;
@@ -60,8 +64,8 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   lsm6dsm_reset_set(&dev_ctx, PROPERTY_ENABLE);
   vTaskDelay(100);
 
-  lsm6dsm_xl_data_rate_set(&dev_ctx, LSM6DSM_XL_ODR_104Hz);
-  lsm6dsm_gy_data_rate_set(&dev_ctx, LSM6DSM_GY_ODR_104Hz);
+  lsm6dsm_xl_data_rate_set(&dev_ctx, LSM6DSM_XL_ODR_416Hz);
+  lsm6dsm_gy_data_rate_set(&dev_ctx, LSM6DSM_GY_ODR_416Hz);
 
   lsm6dsm_xl_full_scale_set(&dev_ctx, LSM6DSM_16g);
   lsm6dsm_gy_full_scale_set(&dev_ctx, LSM6DSM_2000dps);
@@ -71,7 +75,7 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
 
   lsm6dsm_int2_route_t int2_route;
   lsm6dsm_pin_int2_route_get(&dev_ctx, &int2_route);
-  int2_route.int2_drdy_xl = PROPERTY_ENABLE;
+  int2_route.int2_drdy_g = PROPERTY_ENABLE;
   lsm6dsm_pin_int2_route_set(&dev_ctx, int2_route);
 
   accelIrqSemaphore = xSemaphoreCreateBinary();
@@ -89,70 +93,122 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
 
 int16_t accel_raw[3];
 int16_t gyro_raw[3];
-int16_t temp_raw[1];
 
-float accel_mg[3];
-float gyro_mdps[3];
-float temp_c[1];
+vec3_t accelCalibrationSums(0,0,0);
+vec3_t gyroCalibrationSums(0,0,0);
+uint16_t samplesRequired = 832;
+uint16_t samplesCollected = 0;
 
-uint16_t calCount = 0;
-uint16_t secondCalCount = 0;
-uint16_t calStart = 20;
-uint16_t calThreshold = 200;
-bool hasCalibrated = false;
+/* Represents how to get from sensor-frame gravity (which can be spread across all 3 axes, depending on mounting)
+ * To world-frame gravity (which is only on the Z axis)
+ * Allows easy measurement of vertical velocity
+*/
+quat_t gravityRotQuatn;
+vec3_t gyroBiases(0,0,0);
+vec3_t gyroRadsPerSec;
+float accelGravityOffset = 0;
 
-float gyro_bias_sum[3] = {0.0, 0.0, 0.0};
-float gyro_zero_bias[3];
+bool calComplete = false;
+
+void setGravityRotQuatn() {
+  accelCalibrationSums /= samplesRequired;
+
+  vec3_t sensorGravityVec(accelCalibrationSums);
+  sensorGravityVec = sensorGravityVec.norm();
+
+  vec3_t worldGravityVec(0.0f, 0.0f, 1.0f);
+
+  float dotProd = sensorGravityVec.dot(worldGravityVec);
+  if (dotProd >= 0.9999f) {
+    gravityRotQuatn = quat_t(1.0f, 0.0f, 0.0f, 0.0f);
+    return;
+  }
+
+  if (dotProd <= -0.9999f) {
+    vec3_t ortho = sensorGravityVec.cross(vec3_t(1, 0, 0));
+    if (ortho.mag() < 1e-3f) 
+      ortho = sensorGravityVec.cross(vec3_t(0, 1, 0));
+    ortho = ortho.norm();
+    gravityRotQuatn = quat_t(0.0f, ortho.x, ortho.y, ortho.z);
+    return;
+  }
+
+  vec3_t rotAxis = sensorGravityVec.cross(worldGravityVec);
+  gravityRotQuatn = quat_t(dotProd+1.0f, rotAxis);
+  gravityRotQuatn = gravityRotQuatn.norm();
+
+  accelCorrected = gravityRotQuatn.rotate(accelMs, false);
+  accelGravityOffset = accelCorrected.z - GRAVITY_ACCEL;
+}
+
+uint64_t lastMeasurement;
 
 void AccelerometerTask(void* pvParameters) {
+  lastMeasurement = micros();
   while (1) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
       lsm6dsm_acceleration_raw_get(&dev_ctx, accel_raw);
       lsm6dsm_angular_rate_raw_get(&dev_ctx, gyro_raw);
-      lsm6dsm_temperature_raw_get(&dev_ctx, temp_raw);
 
-      accel_mg[0] = lsm6dsm_from_fs16g_to_mg(accel_raw[0]);
-      accel_mg[1] = lsm6dsm_from_fs16g_to_mg(accel_raw[1]);
-      accel_mg[2] = lsm6dsm_from_fs16g_to_mg(accel_raw[2]);
+      accelMs.x = lsm6dsm_from_fs16g_to_mg(accel_raw[0]) * 1e-3 * GRAVITY_ACCEL;
+      accelMs.y = lsm6dsm_from_fs16g_to_mg(accel_raw[1]) * 1e-3 * GRAVITY_ACCEL;
+      accelMs.z = lsm6dsm_from_fs16g_to_mg(accel_raw[2]) * 1e-3 * GRAVITY_ACCEL;
 
-      gyro_mdps[0] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[0]);
-      gyro_mdps[1] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]);
-      gyro_mdps[2] = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[2]);
+      gyroDps.x = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[0]) * 1e-3;
+      gyroDps.y = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]) * 1e-3;
+      gyroDps.z = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[2]) * 1e-3;
 
-      temp_c[0] = lsm6dsm_from_lsb_to_celsius(temp_raw[0]);
-
-      if (calCount < calThreshold) {
-        if (calCount > calStart) {
-          gyro_bias_sum[0] += gyro_mdps[0];
-          gyro_bias_sum[1] += gyro_mdps[1];
-          gyro_bias_sum[2] += gyro_mdps[2];
-          secondCalCount++;
+      if (flightState == FLIGHT_ARMED && !calComplete) {
+        if (samplesCollected < samplesRequired) {
+          accelCalibrationSums += accelMs;
+          gyroCalibrationSums += gyroDps;
+          samplesCollected++;
         }
-
-        calCount++;
-        continue;
+        else {
+          setGravityRotQuatn();
+          gyroCalibrationSums /= samplesRequired;
+          gyroBiases = gyroCalibrationSums;
+          calComplete = true;
+        }
       }
 
-      if (!hasCalibrated) {
-        gyro_zero_bias[0] = gyro_bias_sum[0] / secondCalCount;
-        gyro_zero_bias[1] = gyro_bias_sum[1] / secondCalCount;
-        gyro_zero_bias[2] = gyro_bias_sum[2] / secondCalCount;
-        hasCalibrated = true;
+      // Do not process if accel has not been calibrated
+      if (!calComplete) continue;
+      
+      uint64_t now = micros();
+      float dt = (now - lastMeasurement) * 1e-6;
+      lastMeasurement = now;
+
+      // Accel integration to vertical velocity (does not use gyroscope)
+      accelCorrected = gravityRotQuatn.rotate(accelMs, false);
+      accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 9.8 as possible
+      accelCorrected.z -= GRAVITY_ACCEL; // Remove gravity
+
+      accelVertVel += accelCorrected.z * dt;
+
+      // Gyro integration to orientation quaternion
+      gyroDps -= gyroBiases;
+      gyroRadsPerSec = gyroDps * TO_RADIANS;
+
+      vec3_t deltaAngle = gyroRadsPerSec * dt;
+      float angle = deltaAngle.mag();
+
+      if (angle > 0.0f) {
+        quat_t deltaQ;
+        
+        vec3_t axis = deltaAngle / angle;
+        deltaQ.setRotation(axis, angle, LARGE_ANGLE); 
+    
+        attitudeQuatn = attitudeQuatn * deltaQ; 
+        attitudeQuatn = attitudeQuatn.norm();
       }
 
-      gyro_mdps[0] -= gyro_zero_bias[0];
-      gyro_mdps[1] -= gyro_zero_bias[1];
-      gyro_mdps[2] -= gyro_zero_bias[2];
-
-      // printf("Accel [mg]: X=%.2f Y=%.2f Z=%.2f\n", accel_mg[0], accel_mg[1], accel_mg[2]);
-      // printf("Gyro [mdps]: X=%.2f Y=%.2f Z=%.2f\n\n", gyro_mdps[0], gyro_mdps[1], gyro_mdps[2]);
-      // printf(">accelX:%f\n", accel_mg[0]);
-      // printf(">accelY:%f\n", accel_mg[1]);
-      // printf(">accelZ:%f\n", accel_mg[2]);
-      printf(">gyroX:%f\n", gyro_mdps[0]);
-      printf(">gyroY:%f\n", gyro_mdps[1]);
-      printf(">gyroZ:%f\n", gyro_mdps[2]);
-      // printf(">temp:%f\n", temp_c[0]);
+      // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", accelMs.x, accelMs.y, accelMs.z);
+      // printf("X:%.2f\tY:%.2f\tZ:%.2f\tV:%.2f\n", accelCorrected.x, accelCorrected.y, accelCorrected.z, accelVertVel);
+      // printf(">Vvel:%.2f\n", accelVertVel);
+      // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", gyroDps.x, gyroDps.y, gyroDps.z);
+      // printf("W:%2f\tX:%.2f\tY:%.2f\tZ:%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
+      printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
     }
   }
 }
