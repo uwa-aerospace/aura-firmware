@@ -14,17 +14,19 @@ enum FlightState {
 };
 extern FlightState flightState;
 
+
 #define IMU_SENSOR_EVENT  (1 << 0)
 #define BARO_SENSOR_EVENT (1 << 1)
 #define GNSS_SENSOR_EVENT (1 << 2)
 
 extern EventGroupHandle_t sensorEventGroup;
 
+
 // Acceleration in m/s^2
-extern vec3_t accelMs;
+extern vec3_t accelRaw;
 
 // Gyro angular rate in deg/s
-extern vec3_t gyroDps;
+extern vec3_t gyroRaw;
 
 // Acceleration in world frame
 extern vec3_t accelCorrected;

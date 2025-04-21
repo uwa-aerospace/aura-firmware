@@ -3,8 +3,8 @@
 // Start armed for now
 FlightState flightState = FLIGHT_ARMED;
 
-vec3_t accelMs = vec3_t(0,0,0);
-vec3_t gyroDps = vec3_t(0,0,0);
+vec3_t accelRaw = vec3_t(0,0,0);
+vec3_t gyroRaw = vec3_t(0,0,0);
 vec3_t accelCorrected = vec3_t(0,0,0);
 vec3_t gyroCorrected = vec3_t(0,0,0);
 

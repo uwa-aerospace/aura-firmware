@@ -212,16 +212,16 @@ void LoggingTask(void* pvParameters) {
     writeFloatData(accelCorrected.x, 2);
     writeFloatData(accelCorrected.y, 2);
     writeFloatData(accelCorrected.z, 2);
-    writeFloatData(accelMs.x, 2);
-    writeFloatData(accelMs.y, 2);
-    writeFloatData(accelMs.z, 2);
+    writeFloatData(accelRaw.x, 2);
+    writeFloatData(accelRaw.y, 2);
+    writeFloatData(accelRaw.z, 2);
 
     writeFloatData(gyroCorrected.x, 2);
     writeFloatData(gyroCorrected.y, 2);
     writeFloatData(gyroCorrected.z, 2);
-    writeFloatData(gyroDps.x, 2);
-    writeFloatData(gyroDps.y, 2);
-    writeFloatData(gyroDps.z, 2);
+    writeFloatData(gyroRaw.x, 2);
+    writeFloatData(gyroRaw.y, 2);
+    writeFloatData(gyroRaw.z, 2);
     writeFloatData(attitudeQuatn.w, 5);
     writeFloatData(attitudeQuatn.v.x, 5);
     writeFloatData(attitudeQuatn.v.y, 5);

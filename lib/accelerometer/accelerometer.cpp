@@ -7,10 +7,12 @@
 #include "data.h"
 #include "vector_type.h"
 #include "quaternion_type.h"
+#include "SimpleKalmanFilter.h"
 
 #define TAG "ACCELEROMETER"
-#define GRAVITY_ACCEL 9.80665
+#define GRAVITY_ACCEL 9.8
 #define TO_RADIANS (PI / 180)
+#define TO_DEGREES (180 / PI)
 
 SPIClass* accelSpi = &SPI;
 uint8_t accelCsPin;
@@ -41,6 +43,19 @@ void IRAM_ATTR accelInterrupt(void) {
 }
 
 stmdev_ctx_t dev_ctx;
+
+// "Calculated" values
+float accMeasErr = 6.76 * 1e-4;
+float gyroMeasErr = 0.00601;
+float processVar = 0.001;
+
+SimpleKalmanFilter kfAccX(accMeasErr, accMeasErr, processVar);
+SimpleKalmanFilter kfAccY(accMeasErr, accMeasErr, processVar);
+SimpleKalmanFilter kfAccZ(accMeasErr, accMeasErr, processVar);
+
+SimpleKalmanFilter kfGyroX(gyroMeasErr, gyroMeasErr, processVar);
+SimpleKalmanFilter kfGyroY(gyroMeasErr, gyroMeasErr, processVar);
+SimpleKalmanFilter kfGyroZ(gyroMeasErr, gyroMeasErr, processVar);
 
 SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint8_t interrupt) {
   accelCsPin = cs;
@@ -93,8 +108,11 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   return SETUP_OK;
 }
 
-int16_t accel_raw[3];
-int16_t gyro_raw[3];
+int16_t accel_unprocessed[3];
+int16_t gyro_unprocessed[3];
+
+vec3_t accelFiltered(0,0,0);
+vec3_t gyroFiltered(0,0,0);
 
 vec3_t accelCalibrationSums(0,0,0);
 vec3_t gyroCalibrationSums(0,0,0);
@@ -141,7 +159,7 @@ void setGravityRotQuatn() {
   gravityRotQuatn = quat_t(dotProd+1.0f, rotAxis);
   gravityRotQuatn = gravityRotQuatn.norm();
 
-  accelCorrected = gravityRotQuatn.rotate(accelMs, false);
+  accelCorrected = gravityRotQuatn.rotate(accelCalibrationSums, false);
   accelGravityOffset = accelCorrected.z - GRAVITY_ACCEL;
 }
 
@@ -150,21 +168,29 @@ uint64_t lastMeasurement;
 void AccelerometerTask(void* pvParameters) {
   while (1) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
-      lsm6dsm_acceleration_raw_get(&dev_ctx, accel_raw);
-      lsm6dsm_angular_rate_raw_get(&dev_ctx, gyro_raw);
+      lsm6dsm_acceleration_raw_get(&dev_ctx, accel_unprocessed);
+      lsm6dsm_angular_rate_raw_get(&dev_ctx, gyro_unprocessed);
 
-      accelMs.x = lsm6dsm_from_fs16g_to_mg(accel_raw[0]) * 1e-3 * GRAVITY_ACCEL;
-      accelMs.y = lsm6dsm_from_fs16g_to_mg(accel_raw[1]) * 1e-3 * GRAVITY_ACCEL;
-      accelMs.z = lsm6dsm_from_fs16g_to_mg(accel_raw[2]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.x = lsm6dsm_from_fs16g_to_mg(accel_unprocessed[0]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.y = lsm6dsm_from_fs16g_to_mg(accel_unprocessed[1]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.z = lsm6dsm_from_fs16g_to_mg(accel_unprocessed[2]) * 1e-3 * GRAVITY_ACCEL;
 
-      gyroDps.x = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[0]) * 1e-3;
-      gyroDps.y = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[1]) * 1e-3;
-      gyroDps.z = lsm6dsm_from_fs2000dps_to_mdps(gyro_raw[2]) * 1e-3;
+      gyroRaw.x = lsm6dsm_from_fs2000dps_to_mdps(gyro_unprocessed[0]) * 1e-3;
+      gyroRaw.y = lsm6dsm_from_fs2000dps_to_mdps(gyro_unprocessed[1]) * 1e-3;
+      gyroRaw.z = lsm6dsm_from_fs2000dps_to_mdps(gyro_unprocessed[2]) * 1e-3;
+
+      accelFiltered.x = kfAccX.updateEstimate(accelRaw.x);
+      accelFiltered.y = kfAccY.updateEstimate(accelRaw.y);
+      accelFiltered.z = kfAccZ.updateEstimate(accelRaw.z);
+
+      gyroFiltered.x = kfGyroX.updateEstimate(gyroRaw.x);
+      gyroFiltered.y = kfGyroY.updateEstimate(gyroRaw.y);
+      gyroFiltered.z = kfGyroZ.updateEstimate(gyroRaw.z);
 
       if (flightState == FLIGHT_ARMED && shouldCal) {
         if (samplesCollected < samplesRequired) {
-          accelCalibrationSums += accelMs;
-          gyroCalibrationSums += gyroDps;
+          accelCalibrationSums += accelFiltered;
+          gyroCalibrationSums += gyroFiltered;
           samplesCollected++;
         }
         // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
@@ -194,14 +220,15 @@ void AccelerometerTask(void* pvParameters) {
       lastMeasurement = now;
 
       // Accel integration to vertical velocity (does not use gyroscope)
-      accelCorrected = gravityRotQuatn.rotate(accelMs, false);
+      accelCorrected = gravityRotQuatn.rotate(accelFiltered, false);
       accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 9.8 as possible
-      accelCorrected.z -= GRAVITY_ACCEL; // Remove gravity
+      accelCorrected.z -= GRAVITY_ACCEL;
+      accelCorrected.z += 0.01;
 
       accelVertVel += accelCorrected.z * dt;
 
       // Gyro integration to orientation quaternion
-      gyroCorrected = gyroDps - gyroBiases;
+      gyroCorrected = gyroFiltered - gyroBiases;
       gyroRadsPerSec = gyroCorrected * TO_RADIANS;
 
       vec3_t deltaAngle = gyroRadsPerSec * dt;
@@ -217,6 +244,12 @@ void AccelerometerTask(void* pvParameters) {
         attitudeQuatn = attitudeQuatn.norm();
       }
 
+      vec3_t vertical(0,0,1);
+      vec3_t rotatedVert = attitudeQuatn.rotate(vertical, false);
+      float vertDot = vertical.dot(rotatedVert);
+      vertDot = max(-1.0f, min(1.0f, vertDot));
+      tiltAngle = acos(vertDot) * TO_DEGREES;
+
       xEventGroupSetBits(sensorEventGroup, IMU_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
@@ -228,11 +261,13 @@ void AccelerometerTask(void* pvParameters) {
       if (flightState == FLIGHT_ARMED && !shouldCal) calCount++;
 
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", accelMs.x, accelMs.y, accelMs.z);
-      // printf("X:%.2f\tY:%.2f\tZ:%.2f\tV:%.2f\n", accelCorrected.x, accelCorrected.y, accelCorrected.z, accelVertVel);
+      // printf(">X:%.2f\n>Y:%.2f\n>Z:%.2f\n>V:%.2f\n", accelCorrected.x, accelCorrected.y, accelCorrected.z, accelVertVel);
       // printf(">Vvel:%.2f\n", accelVertVel);
-      // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", gyroDps.x, gyroDps.y, gyroDps.z);
+      // printf(">RawY:%.2f\n>Y:%.2f\n>Z:%.2f\n", gyroRaw.y, gyroFiltered.y, gyroCorrected.z);
       // printf("W:%2f\tX:%.2f\tY:%.2f\tZ:%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
       // printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
+      // printf("Quaternion: %2f,%.2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z, tiltAngle);
+      // printf("tiltAngle:%.2f\n", tiltAngle);
       // printf(">dt:%.2f\n", dt*1e+3);
     }
   }
