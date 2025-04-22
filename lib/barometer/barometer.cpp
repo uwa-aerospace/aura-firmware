@@ -58,9 +58,11 @@ uint16_t samplesCollected = 0;
 
 bool shouldCal = true;
 float padAltitudeSum = 0;
+uint32_t calCount = 0;
+#define BARO_RECAL_THRESHOLD 500 // Recalibrate once every 10 seconds whilst armed on the pad
 
 void setupKfBaro() {
-  float baroMeasErr = 850; // +/- 3.5mbar error at 300-1100 mbar from -20C to 85C
+  float baroMeasErr = 435; // +/- 3.5mbar error at 300-1100 mbar from -20C to 85C
   float processVar = 0.5f;
   float dt = 0.02f;
   kfBaro.init(kfSetupAlt, 0.0f, baroMeasErr, baroMeasErr, processVar, baroMeasErr, dt);
@@ -107,7 +109,8 @@ void BarometerTask(void *pvParameters) {
           padAltitudeSum += baroAltitudeMSL;
           samplesCollected++;
         }
-        else {
+        // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
+        else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
           baroPadAltitude = padAltitudeSum / samplesRequired;
           shouldCal = false;
           samplesCollected = 0;
@@ -115,6 +118,14 @@ void BarometerTask(void *pvParameters) {
       }
 
       baroAltitudeAGL = baroAltitudeMSL - baroPadAltitude;
+
+      // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
+      if (calCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+        shouldCal = true;
+        calCount = 0;
+      }
+
+      if (flightState == FLIGHT_ARMED && !shouldCal) calCount++;
 
       // printf(">RA:%.2f\n>KA:%.2f\n>KV:%.2f\n", altitude, baroAltitudeAGL, baroVertVel);
     }

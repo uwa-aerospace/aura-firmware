@@ -131,6 +131,7 @@ float accelGravityOffset = 0;
 bool shouldCal = true;
 bool initialCalibration = false;
 uint32_t calCount = 0;
+#define IMU_RECAL_THRESHOLD 4160 // Recalibrate once every 10 seconds whilst armed on the pad
 
 void setGravityRotQuatn() {
   accelCalibrationSums /= samplesRequired;
@@ -253,7 +254,7 @@ void AccelerometerTask(void* pvParameters) {
       xEventGroupSetBits(sensorEventGroup, IMU_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-      if (calCount >= 4160 && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
         shouldCal = true;
         calCount = 0;
       }

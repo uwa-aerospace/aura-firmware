@@ -72,6 +72,8 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
 
 bool shouldCal = true;
 float gnssPadAltitudeSum = 0;
+uint32_t calCount = 0;
+#define GNSS_RECAL_THRESHOLD 250 // Recalibrate once every 10 seconds whilst armed on the pad
 
 uint16_t samplesRequired = 50;
 uint16_t samplesCollected = 0;
@@ -105,7 +107,8 @@ void GnssTask(void *pvParameters) {
               gnssPadAltitudeSum += gnssAltitudeMSL;
               samplesCollected++;
             }
-            else {
+            // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
+            else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
               gnssPadAltitude = gnssPadAltitudeSum / samplesRequired;
               shouldCal = false;
               samplesCollected = 0;
@@ -114,7 +117,15 @@ void GnssTask(void *pvParameters) {
 
           gnssAltitudeAGL = gnssAltitudeMSL - gnssPadAltitude;
 
-          printf(">MSL:%.2f\n>AGL:%.2f\n>VV:%.2f\n", gnssAltitudeMSL, gnssAltitudeAGL, gnssVertVel);
+          // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
+          if (calCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+            shouldCal = true;
+            calCount = 0;
+          }
+
+          if (flightState == FLIGHT_ARMED && !shouldCal) calCount++;
+
+          // printf(">MSL:%.2f\n>AGL:%.2f\n>VV:%.2f\n", gnssAltitudeMSL, gnssAltitudeAGL, gnssVertVel);
         }
       }
     }
