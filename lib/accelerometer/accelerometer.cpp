@@ -263,7 +263,8 @@ void AccelerometerTask(void* pvParameters) {
       // printf("X:%.2f\tY:%.2f\tZ:%.2f\n", accelMs.x, accelMs.y, accelMs.z);
       // printf(">X:%.2f\n>Y:%.2f\n>Z:%.2f\n>V:%.2f\n", accelCorrected.x, accelCorrected.y, accelCorrected.z, accelVertVel);
       // printf(">Vvel:%.2f\n", accelVertVel);
-      // printf(">RawY:%.2f\n>Y:%.2f\n>Z:%.2f\n", gyroRaw.y, gyroFiltered.y, gyroCorrected.z);
+      // printf(">X:%.2f\n>Y:%.2f\n>Z:%.2f\n", gyroRaw.x, gyroRaw.y, gyroRaw.z);
+      // printf(">X:%.2f\n>Y:%.2f\n>Z:%.2f\n", gyroCorrected.x, gyroCorrected.y, gyroCorrected.z);
       // printf("W:%2f\tX:%.2f\tY:%.2f\tZ:%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
       // printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
       // printf("Quaternion: %2f,%.2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z, tiltAngle);

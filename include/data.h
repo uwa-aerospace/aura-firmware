@@ -21,21 +21,26 @@ extern FlightState flightState;
 
 extern EventGroupHandle_t sensorEventGroup;
 
+// IMU DATA
+extern vec3_t accelRaw; // m/s^2, unfiltered
+extern vec3_t gyroRaw;  // dps, unfiltered
+extern vec3_t accelCorrected; // m/s^2, filtered 1D kalman, rotated to world frame
+extern vec3_t gyroCorrected;  // dps, filtered 1D kalman, zero biases subtracted
 
-// Acceleration in m/s^2
-extern vec3_t accelRaw;
+extern quat_t attitudeQuatn; // result of gyro integration
+extern float tiltAngle;      // gyro angle from vertical [0,0,1]
+extern float accelVertVel;   // result of Z acceleration integration
 
-// Gyro angular rate in deg/s
-extern vec3_t gyroRaw;
+// BARO DATA
+extern float baroAltitudeMSL; // m, filtered 2D kalman
+extern float baroAltitudeAGL; // m, filtered 2D kalman
+extern float baroVertVel;     // m/s, filtered 2D kalman
+extern int baroPressure;      // pascals, unfiltered
+extern float padAltitude;
 
-// Acceleration in world frame
-extern vec3_t accelCorrected;
-
-// Gyro angular rates corrected for zero-rate bias
-extern vec3_t gyroCorrected;
-
-extern quat_t attitudeQuatn;
-extern float tiltAngle;
-extern float accelVertVel;
-
+// GPS DATA
+extern float gpsLatitude;
+extern float gpsLongitude;
+extern float gpsAltitude;
+extern float gpsVertVel;
 #endif
