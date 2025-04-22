@@ -29,10 +29,10 @@ void setupPyros(uint8_t c1, uint8_t c2, uint8_t c3, uint8_t c4) {
   timers[2] = timerBegin(2, TIMER_PRESCALER, true);
   timers[3] = timerBegin(3, TIMER_PRESCALER, true);
 
-  timerAttachInterrupt(timers[0], &onTimer0, true);
-  timerAttachInterrupt(timers[1], &onTimer1, true);
-  timerAttachInterrupt(timers[2], &onTimer2, true);
-  timerAttachInterrupt(timers[3], &onTimer3, true);
+  timerAttachInterrupt(timers[0], &onTimer0, 0);
+  timerAttachInterrupt(timers[1], &onTimer1, 0);
+  timerAttachInterrupt(timers[2], &onTimer2, 0);
+  timerAttachInterrupt(timers[3], &onTimer3, 0);
 }
 
 // 0 INDEXED

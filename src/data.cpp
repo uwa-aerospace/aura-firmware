@@ -16,10 +16,14 @@ float baroAltitudeMSL = 0;
 float baroAltitudeAGL = 0;
 float baroVertVel = 0;
 int baroPressure = 0;
-float padAltitude = 0;
+float baroPadAltitude = 0;
 
-// GPS DATA
-float gpsLatitude = 0;
-float gpsLongitude = 0;
-float gpsAltitude = 0;
-float gpsVertVel = 0;
+// GNSS DATA
+float gnssLatitude = 0;
+float gnssLongitude = 0;
+float gnssAltitudeMSL = 0;
+float gnssAltitudeAGL = 0;
+float gnssVertVel = 0;
+float gnssPadAltitude = 0;
+bool gnssValidReadings = true;
+bool gnssHasFix = false;

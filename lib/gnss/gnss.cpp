@@ -5,6 +5,9 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 
+#include "data.h"
+#include "vector_type.h"
+
 #define TAG "GNSS"
 
 SFE_UBLOX_GNSS neo;
@@ -67,6 +70,12 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
   return SETUP_OK;
 }
 
+bool shouldCal = true;
+float gnssPadAltitudeSum = 0;
+
+uint16_t samplesRequired = 50;
+uint16_t samplesCollected = 0;
+
 void GnssTask(void *pvParameters) {
   // Task is ready to receive data, tell RX interrupt to stop flushing FIFO
   gnssTaskStarted = true;
@@ -76,27 +85,36 @@ void GnssTask(void *pvParameters) {
       // Allows processing of multiple messages at once
       while (neo.checkUblox()) {
         if (neo.getPVT()) {
-          uint32_t gpsTimeMs = neo.getTimeOfWeek();
-          static uint32_t lastTime = 0;
-  
-          int year = neo.getYear();
-          int month = neo.getMonth();
-          int day = neo.getDay();
-          int hour = neo.getHour();
-          int minute = neo.getMinute();
-          int second = neo.getSecond();
-          int32_t lt = neo.getLatitude();
-          int32_t ln = neo.getLongitude();
-          int32_t al = neo.getAltitudeMSL();
-          float lat = lt / 10000000.0;
-          float lng = ln / 10000000.0;
-          float alt = al / 1000.0;
-  
-          uint32_t delta = gpsTimeMs - lastTime;
-          // if (delta != 40)
-          // ESP_LOGI(TAG, "Date & Time: %04d-%02d-%02d %02d:%02d:%02d UTC, GPS Time: %lu ms, Delta: %lu ms", year, month, day, hour, minute, second, gpsTimeMs, delta);
-          ESP_LOGI(TAG, "Lat: %.6f, Lng: %.6f, Alt: %.2f, Delta: %lu ms", lat, lng, alt, delta);
-          lastTime = gpsTimeMs;
+          UBX_NAV_PVT_data_t pvt = neo.packetUBXNAVPVT->data;
+
+          gnssHasFix = pvt.fixType == 3; // Must have a 3D fix
+          if (!gnssHasFix) continue;
+          
+          gnssLatitude = pvt.lat / 1e-7;
+          gnssLongitude = pvt.lon / 1e-7;
+          
+          // Altitude and vert vel are measured in mm (mm/s)
+          gnssAltitudeMSL = pvt.hMSL / 1000.0;
+          gnssVertVel = pvt.velD / 1000.0;
+
+          float gnssPdop = pvt.pDOP / 100.0;
+          gnssValidReadings = (gnssPdop < 3);
+
+          if (flightState == FLIGHT_ARMED && shouldCal) {
+            if (samplesCollected < samplesRequired && gnssValidReadings) {
+              gnssPadAltitudeSum += gnssAltitudeMSL;
+              samplesCollected++;
+            }
+            else {
+              gnssPadAltitude = gnssPadAltitudeSum / samplesRequired;
+              shouldCal = false;
+              samplesCollected = 0;
+            }
+          }
+
+          gnssAltitudeAGL = gnssAltitudeMSL - gnssPadAltitude;
+
+          printf(">MSL:%.2f\n>AGL:%.2f\n>VV:%.2f\n", gnssAltitudeMSL, gnssAltitudeAGL, gnssVertVel);
         }
       }
     }

@@ -36,11 +36,15 @@ extern float baroAltitudeMSL; // m, filtered 2D kalman
 extern float baroAltitudeAGL; // m, filtered 2D kalman
 extern float baroVertVel;     // m/s, filtered 2D kalman
 extern int baroPressure;      // pascals, unfiltered
-extern float padAltitude;
+extern float baroPadAltitude;
 
-// GPS DATA
-extern float gpsLatitude;
-extern float gpsLongitude;
-extern float gpsAltitude;
-extern float gpsVertVel;
+// GNSS DATA
+extern float gnssLatitude;
+extern float gnssLongitude;
+extern float gnssAltitudeMSL;
+extern float gnssAltitudeAGL;
+extern float gnssVertVel;
+extern float gnssPadAltitude;
+extern bool gnssValidReadings;
+extern bool gnssHasFix;
 #endif

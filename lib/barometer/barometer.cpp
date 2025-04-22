@@ -108,15 +108,15 @@ void BarometerTask(void *pvParameters) {
           samplesCollected++;
         }
         else {
-          padAltitude = padAltitudeSum / samplesRequired;
+          baroPadAltitude = padAltitudeSum / samplesRequired;
           shouldCal = false;
           samplesCollected = 0;
         }
       }
 
-      baroAltitudeAGL = baroAltitudeMSL - padAltitude;
+      baroAltitudeAGL = baroAltitudeMSL - baroPadAltitude;
 
-      printf(">RA:%.2f\n>KA:%.2f\n>KV:%.2f\n", altitude, baroAltitudeAGL, baroVertVel);
+      // printf(">RA:%.2f\n>KA:%.2f\n>KV:%.2f\n", altitude, baroAltitudeAGL, baroVertVel);
     }
   }
 }
