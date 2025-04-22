@@ -111,7 +111,8 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
   }
 
   snprintf(filePath, sizeof(filePath), "%s%s.csv", logPath, logPath);
-  const char* header = "timestamp,verticalVelocity,accelX,accelY,accelZ,rawAccelX,rawAccelY,rawAccelZ,gyroX,gyroY,gyroZ,rawGyroX,rawGyroY,rawGyroZ,quatnW,quatnX,quatnY,quatnZ\n";
+  
+  const char* header = "time,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,rawAccX,rawAccY,rawAccZ,gyroX,gyroY,gyroZ,rawGyroX,rawGyroY,rawGyroZ,quatnW,quatnX,quatnY,quatnZ,baroAltMSL,baroPres,lat,lon,gnssAltMSL,gnssPDOP\n";
   if (!writeFile(SD_MMC, filePath, header)) {
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
@@ -188,6 +189,7 @@ void writeFloatData(float dataValue, byte decimals){
 float logTime = 0;
 uint64_t lastLogTime = 0;
 uint64_t numLogs = 0;
+bool firstLog = true;
 
 void LoggingTask(void* pvParameters) {
   openLogFile(SD_MMC, filePath);
@@ -204,11 +206,20 @@ void LoggingTask(void* pvParameters) {
     float dt = (now - lastLogTime) * 1e-3;
     lastLogTime = now;
 
-    if (dt < 1000) logTime += dt;
+    if (dt < 250 && firstLog) firstLog = false;
+    if (!firstLog) logTime += dt;
 
     writeFloatData(logTime, 2);
 
+    writeFloatData(baroAltitudeAGL, 2);
+    writeFloatData(gnssAltitudeAGL, 2);
+
     writeFloatData(accelVertVel, 2);
+    writeFloatData(baroVertVel, 2);
+    writeFloatData(gnssVertVel, 2);
+    
+    writeFloatData(tiltAngle, 2);
+
     writeFloatData(accelCorrected.x, 2);
     writeFloatData(accelCorrected.y, 2);
     writeFloatData(accelCorrected.z, 2);
@@ -226,6 +237,22 @@ void LoggingTask(void* pvParameters) {
     writeFloatData(attitudeQuatn.v.x, 5);
     writeFloatData(attitudeQuatn.v.y, 5);
     writeFloatData(attitudeQuatn.v.z, 5);
+
+    if (bits & BARO_SENSOR_EVENT) {
+      writeFloatData(baroAltitudeMSL, 2);
+      writeIntData(baroPressure);
+    }
+    else {
+      dataString[strPosn] = ','; strPosn++;
+      dataString[strPosn] = ','; strPosn++;
+    }
+
+    if (bits & GNSS_SENSOR_EVENT) {
+      writeFloatData(gnssLatitude, 6);
+      writeFloatData(gnssLongitude, 6);
+      writeFloatData(gnssAltitudeMSL, 2);
+      writeFloatData(gnssPDOP, 2);
+    }
 
     strPosn--;
     dataString[strPosn] = '\n'; strPosn++;

@@ -70,13 +70,13 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
   return SETUP_OK;
 }
 
-bool shouldCal = true;
+bool shouldCalGnss = true;
 float gnssPadAltitudeSum = 0;
-uint32_t calCount = 0;
+uint32_t gnssCalCount = 0;
 #define GNSS_RECAL_THRESHOLD 250 // Recalibrate once every 10 seconds whilst armed on the pad
 
-uint16_t samplesRequired = 50;
-uint16_t samplesCollected = 0;
+uint16_t gnssSamplesRequired = 50;
+uint16_t gnssSamplesCollected = 0;
 
 void GnssTask(void *pvParameters) {
   // Task is ready to receive data, tell RX interrupt to stop flushing FIFO
@@ -92,40 +92,43 @@ void GnssTask(void *pvParameters) {
           gnssHasFix = pvt.fixType == 3; // Must have a 3D fix
           if (!gnssHasFix) continue;
           
-          gnssLatitude = pvt.lat / 1e-7;
-          gnssLongitude = pvt.lon / 1e-7;
+          gnssLatitude = pvt.lat / 1e7;
+          gnssLongitude = pvt.lon / 1e7;
           
           // Altitude and vert vel are measured in mm (mm/s)
           gnssAltitudeMSL = pvt.hMSL / 1000.0;
           gnssVertVel = pvt.velD / 1000.0;
 
-          float gnssPdop = pvt.pDOP / 100.0;
-          gnssValidReadings = (gnssPdop < 3);
+          gnssPDOP = pvt.pDOP / 100.0;
+          gnssValidReadings = (gnssPDOP < 3);
 
-          if (flightState == FLIGHT_ARMED && shouldCal) {
-            if (samplesCollected < samplesRequired && gnssValidReadings) {
+          if (flightState == FLIGHT_ARMED && shouldCalGnss) {
+            if (gnssSamplesCollected < gnssSamplesRequired) {
               gnssPadAltitudeSum += gnssAltitudeMSL;
-              samplesCollected++;
+              gnssSamplesCollected++;
             }
             // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
             else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
-              gnssPadAltitude = gnssPadAltitudeSum / samplesRequired;
-              shouldCal = false;
-              samplesCollected = 0;
+              gnssPadAltitude = gnssPadAltitudeSum / gnssSamplesRequired;
+              shouldCalGnss = false;
+              gnssPadAltitudeSum = 0;
+              gnssSamplesCollected = 0;
             }
           }
 
           gnssAltitudeAGL = gnssAltitudeMSL - gnssPadAltitude;
 
+          xEventGroupSetBits(sensorEventGroup, GNSS_SENSOR_EVENT);
+
           // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-          if (calCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
-            shouldCal = true;
-            calCount = 0;
+          if (gnssCalCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+            shouldCalGnss = true;
+            gnssCalCount = 0;
           }
 
-          if (flightState == FLIGHT_ARMED && !shouldCal) calCount++;
+          if (flightState == FLIGHT_ARMED && !shouldCalGnss) gnssCalCount++;
 
-          // printf(">MSL:%.2f\n>AGL:%.2f\n>VV:%.2f\n", gnssAltitudeMSL, gnssAltitudeAGL, gnssVertVel);
+          // printf(">MSL:%.2f\t>AGL:%.2f\t>VV:%.2f\t>Lat:%.6f\t>Lon:%.6f\n", gnssAltitudeMSL, gnssAltitudeAGL, gnssVertVel, gnssLatitude, gnssLongitude);
         }
       }
     }

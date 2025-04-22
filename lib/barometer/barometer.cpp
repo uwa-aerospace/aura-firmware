@@ -53,12 +53,12 @@ uint64_t lastBaroMeas;
 float kfSetupAlt = 0;
 bool kfSetup = false;
 
-uint16_t samplesRequired = 100;
-uint16_t samplesCollected = 0;
+uint16_t baroSamplesRequired = 100;
+uint16_t baroSamplesCollected = 0;
 
-bool shouldCal = true;
+bool shouldCalBaro = true;
 float padAltitudeSum = 0;
-uint32_t calCount = 0;
+uint32_t baroCalCount = 0;
 #define BARO_RECAL_THRESHOLD 500 // Recalibrate once every 10 seconds whilst armed on the pad
 
 void setupKfBaro() {
@@ -78,14 +78,14 @@ void BarometerTask(void *pvParameters) {
 
       // Average out altitudes for Kalman filter setup
       if (flightState == FLIGHT_ARMED && !kfSetup) {
-        if (samplesCollected < samplesRequired) {
+        if (baroSamplesCollected < baroSamplesRequired) {
           kfSetupAlt += altitude;
-          samplesCollected++;
+          baroSamplesCollected++;
         }
         else {
-          kfSetupAlt /= samplesRequired;
+          kfSetupAlt /= baroSamplesRequired;
           setupKfBaro();
-          samplesCollected = 0;
+          baroSamplesCollected = 0;
         }
       }
 
@@ -102,30 +102,34 @@ void BarometerTask(void *pvParameters) {
 
       baroAltitudeMSL = kfBaro.x[0];
       baroVertVel = kfBaro.x[1];
+      baroPressure = pressure;
 
       // Average out altitudes to find pad altitude, used for AGL altitude
-      if (flightState == FLIGHT_ARMED && shouldCal) {
-        if (samplesCollected < samplesRequired) {
+      if (flightState == FLIGHT_ARMED && shouldCalBaro) {
+        if (baroSamplesCollected < baroSamplesRequired) {
           padAltitudeSum += baroAltitudeMSL;
-          samplesCollected++;
+          baroSamplesCollected++;
         }
         // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
         else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
-          baroPadAltitude = padAltitudeSum / samplesRequired;
-          shouldCal = false;
-          samplesCollected = 0;
+          baroPadAltitude = padAltitudeSum / baroSamplesRequired;
+          shouldCalBaro = false;
+          padAltitudeSum = 0;
+          baroSamplesCollected = 0;
         }
       }
 
       baroAltitudeAGL = baroAltitudeMSL - baroPadAltitude;
 
+      xEventGroupSetBits(sensorEventGroup, BARO_SENSOR_EVENT);
+
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-      if (calCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
-        shouldCal = true;
-        calCount = 0;
+      if (baroCalCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+        shouldCalBaro = true;
+        baroCalCount = 0;
       }
 
-      if (flightState == FLIGHT_ARMED && !shouldCal) calCount++;
+      if (flightState == FLIGHT_ARMED && !shouldCalBaro) baroCalCount++;
 
       // printf(">RA:%.2f\n>KA:%.2f\n>KV:%.2f\n", altitude, baroAltitudeAGL, baroVertVel);
     }

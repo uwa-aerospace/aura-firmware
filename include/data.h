@@ -45,6 +45,7 @@ extern float gnssAltitudeMSL;
 extern float gnssAltitudeAGL;
 extern float gnssVertVel;
 extern float gnssPadAltitude;
+extern float gnssPDOP;
 extern bool gnssValidReadings;
 extern bool gnssHasFix;
 #endif
