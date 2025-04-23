@@ -99,6 +99,8 @@ void GnssTask(void *pvParameters) {
           gnssAltitudeMSL = pvt.hMSL / 1000.0;
           gnssVertVel = pvt.velD / 1000.0;
 
+          maxGnssVertVel = max(maxGnssVertVel, gnssVertVel);
+
           gnssPDOP = pvt.pDOP / 100.0;
           gnssValidReadings = (gnssPDOP < 3);
 
@@ -107,8 +109,8 @@ void GnssTask(void *pvParameters) {
               gnssPadAltitudeSum += gnssAltitudeMSL;
               gnssSamplesCollected++;
             }
-            // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-            else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
+            // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 1.5g, < 2m/s)
+            else if (flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
               gnssPadAltitude = gnssPadAltitudeSum / gnssSamplesRequired;
               shouldCalGnss = false;
               gnssPadAltitudeSum = 0;
@@ -120,8 +122,8 @@ void GnssTask(void *pvParameters) {
 
           xEventGroupSetBits(sensorEventGroup, GNSS_SENSOR_EVENT);
 
-          // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-          if (gnssCalCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+          // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g, < 2m/s)
+          if (gnssCalCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
             shouldCalGnss = true;
             gnssCalCount = 0;
           }

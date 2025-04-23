@@ -21,9 +21,14 @@
 #include "accelerometer.h"
 #include "radio.h"
 #include "pyro.h"
+#include "flightlogic.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
+
+// IMPORTANT SETTINGS
+#define MAIN_DEPLOY_ALT 250 // in M
+#define RADIO_FREQ 915000000 // in Hz
 
 // Pin and MCU function declarations
 #define GNSS_RX_PIN 21
@@ -95,11 +100,10 @@ void setup() {
   // // Radio SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
 
-  // // Pyro SETUP
+  // Misc setups, no checks required because they will generally always succeed
   setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
-
-  // Buzzer SETUP
   setupBuzzer(BUZZER_PIN);
+  setupFlightLogic(MAIN_DEPLOY_ALT);
 
   sensorEventGroup = xEventGroupCreate();
   if (sensorEventGroup == NULL) {
@@ -116,6 +120,7 @@ void setup() {
     while (1); // Do not proceed with execution
   }
  
+  delay(1000);
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks

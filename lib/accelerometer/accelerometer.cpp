@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "SPI.h"
-#include "lsm6dsm_reg.h"
+// #include "lsm6dsm_reg.h"
+#include "lsm6dsox_reg.h"
 
 #include "accelerometer.h"
 #include "sdcard.h"
@@ -19,21 +20,24 @@ uint8_t accelCsPin;
 
 int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len) {
   digitalWrite(accelCsPin, LOW);
-  accelSpi->transfer(reg & 0x7F);
-  while (len--) {
-    accelSpi->transfer(*bufp++);
+  accelSpi->transfer(reg);
+  for (uint16_t i = 0; i < len; i++) {
+    accelSpi->transfer(bufp[i]);
   }
   digitalWrite(accelCsPin, HIGH);
+
   return 0;
 }
 
 int32_t platform_read(void *ctx, uint8_t reg, uint8_t *bufp, uint16_t len) {
+  reg |= 0x80;
   digitalWrite(accelCsPin, LOW);
-  accelSpi->transfer(reg | 0x80);
-  while (len--) {
-    *bufp++ = accelSpi->transfer(0x00);
+  accelSpi->transfer(reg);
+  for (uint16_t i = 0; i < len; i++) {
+    bufp[i] = accelSpi->transfer(0x00);
   }
   digitalWrite(accelCsPin, HIGH);
+  
   return 0;
 }
 
@@ -70,30 +74,29 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   dev_ctx.handle = NULL;
 
   uint8_t whoami = 0;
-  lsm6dsm_device_id_get(&dev_ctx, &whoami);
+  lsm6dsox_device_id_get(&dev_ctx, &whoami);
 
-  if (whoami != LSM6DSM_ID) {
+  if (whoami != LSM6DSOX_ID) {
     ESP_LOGE(TAG, "Could not detect accelerometer");
     return ACCEL_ERROR;
   }
 
-  lsm6dsm_reset_set(&dev_ctx, PROPERTY_ENABLE);
+  lsm6dsox_reset_set(&dev_ctx, PROPERTY_ENABLE);
   vTaskDelay(100);
 
-  lsm6dsm_xl_data_rate_set(&dev_ctx, LSM6DSM_XL_ODR_416Hz);
-  lsm6dsm_gy_data_rate_set(&dev_ctx, LSM6DSM_GY_ODR_416Hz);
+  lsm6dsox_xl_data_rate_set(&dev_ctx, LSM6DSOX_XL_ODR_417Hz);
+  lsm6dsox_gy_data_rate_set(&dev_ctx, LSM6DSOX_GY_ODR_417Hz);
+  
+  lsm6dsox_xl_full_scale_set(&dev_ctx, LSM6DSOX_16g);
+  lsm6dsox_gy_full_scale_set(&dev_ctx, LSM6DSOX_2000dps);
 
-  lsm6dsm_xl_full_scale_set(&dev_ctx, LSM6DSM_16g);
-  lsm6dsm_gy_full_scale_set(&dev_ctx, LSM6DSM_2000dps);
+  lsm6dsox_xl_power_mode_set(&dev_ctx, LSM6DSOX_HIGH_PERFORMANCE_MD);
+  lsm6dsox_gy_power_mode_set(&dev_ctx, LSM6DSOX_GY_HIGH_PERFORMANCE);
 
-  lsm6dsm_xl_power_mode_set(&dev_ctx, LSM6DSM_XL_HIGH_PERFORMANCE);
-  lsm6dsm_gy_power_mode_set(&dev_ctx, LSM6DSM_GY_HIGH_PERFORMANCE);
-
-  lsm6dsm_int2_route_t int2_route;
-  lsm6dsm_pin_int2_route_get(&dev_ctx, &int2_route);
-  int2_route.int2_drdy_g = PROPERTY_ENABLE;
-  lsm6dsm_pin_int2_route_set(&dev_ctx, int2_route);
-  lsm6dsm_int_notification_set(&dev_ctx, LSM6DSM_INT_PULSED);
+  lsm6dsox_pin_int2_route_t int2_route;
+  lsm6dsox_pin_int2_route_get(&dev_ctx, NULL, &int2_route);
+  int2_route.drdy_g = PROPERTY_ENABLE;
+  lsm6dsox_pin_int2_route_set(&dev_ctx, NULL, int2_route);
 
   accelIrqSemaphore = xSemaphoreCreateBinary();
   if (accelIrqSemaphore == NULL) {
@@ -131,7 +134,7 @@ float accelGravityOffset = 0;
 bool shouldCal = true;
 bool initialCalibration = false;
 uint32_t calCount = 0;
-#define IMU_RECAL_THRESHOLD 4160 // Recalibrate once every 10 seconds whilst armed on the pad
+#define IMU_RECAL_THRESHOLD 8320 // Recalibrate once every 20 seconds whilst armed on the pad
 
 void setGravityRotQuatn() {
   accelCalibrationSums /= samplesRequired;
@@ -169,16 +172,16 @@ uint64_t lastMeasurement;
 void AccelerometerTask(void* pvParameters) {
   while (1) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
-      lsm6dsm_acceleration_raw_get(&dev_ctx, accel_unprocessed);
-      lsm6dsm_angular_rate_raw_get(&dev_ctx, gyro_unprocessed);
+      lsm6dsox_acceleration_raw_get(&dev_ctx, accel_unprocessed);
+      lsm6dsox_angular_rate_raw_get(&dev_ctx, gyro_unprocessed);
 
-      accelRaw.x = lsm6dsm_from_fs16g_to_mg(accel_unprocessed[0]) * 1e-3 * GRAVITY_ACCEL;
-      accelRaw.y = lsm6dsm_from_fs16g_to_mg(accel_unprocessed[1]) * 1e-3 * GRAVITY_ACCEL;
-      accelRaw.z = lsm6dsm_from_fs16g_to_mg(accel_unprocessed[2]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.x = lsm6dsox_from_fs16_to_mg(accel_unprocessed[0]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.y = lsm6dsox_from_fs16_to_mg(accel_unprocessed[1]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.z = lsm6dsox_from_fs16_to_mg(accel_unprocessed[2]) * 1e-3 * GRAVITY_ACCEL;
 
-      gyroRaw.x = lsm6dsm_from_fs2000dps_to_mdps(gyro_unprocessed[0]) * 1e-3;
-      gyroRaw.y = lsm6dsm_from_fs2000dps_to_mdps(gyro_unprocessed[1]) * 1e-3;
-      gyroRaw.z = lsm6dsm_from_fs2000dps_to_mdps(gyro_unprocessed[2]) * 1e-3;
+      gyroRaw.x = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[0]) * 1e-3;
+      gyroRaw.y = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[1]) * 1e-3;
+      gyroRaw.z = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[2]) * 1e-3;
 
       accelFiltered.x = kfAccX.updateEstimate(accelRaw.x);
       accelFiltered.y = kfAccY.updateEstimate(accelRaw.y);
@@ -195,7 +198,7 @@ void AccelerometerTask(void* pvParameters) {
           samplesCollected++;
         }
         // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-        else if (flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 5) {
+        else if (flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
           setGravityRotQuatn();
           accelCalibrationSums = vec3_t(0,0,0);
           accelVertVel = 0;
@@ -224,9 +227,10 @@ void AccelerometerTask(void* pvParameters) {
       accelCorrected = gravityRotQuatn.rotate(accelFiltered, false);
       accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 9.8 as possible
       accelCorrected.z -= GRAVITY_ACCEL;
-      accelCorrected.z += 0.01;
+      // accelCorrected.z += 0.01;
 
       accelVertVel += accelCorrected.z * dt;
+      maxAccelVertVel = max(maxAccelVertVel, accelVertVel);
 
       // Gyro integration to orientation quaternion
       gyroCorrected = gyroFiltered - gyroBiases;
@@ -254,7 +258,7 @@ void AccelerometerTask(void* pvParameters) {
       xEventGroupSetBits(sensorEventGroup, IMU_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 3 && accelCorrected.z < 8) {
+      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
         shouldCal = true;
         calCount = 0;
       }

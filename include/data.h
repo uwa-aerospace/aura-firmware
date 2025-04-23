@@ -30,6 +30,7 @@ extern vec3_t gyroCorrected;  // dps, filtered 1D kalman, zero biases subtracted
 extern quat_t attitudeQuatn; // result of gyro integration
 extern float tiltAngle;      // gyro angle from vertical [0,0,1]
 extern float accelVertVel;   // result of Z acceleration integration
+extern float maxAccelVertVel;
 
 // BARO DATA
 extern float baroAltitudeMSL; // m, filtered 2D kalman
@@ -44,6 +45,7 @@ extern float gnssLongitude;
 extern float gnssAltitudeMSL;
 extern float gnssAltitudeAGL;
 extern float gnssVertVel;
+extern float maxGnssVertVel;
 extern float gnssPadAltitude;
 extern float gnssPDOP;
 extern bool gnssValidReadings;

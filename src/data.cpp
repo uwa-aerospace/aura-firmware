@@ -11,6 +11,7 @@ vec3_t gyroCorrected = vec3_t(0,0,0);
 quat_t attitudeQuatn(1.0f, 0.0f, 0.0f, 0.0f);
 float tiltAngle = 0;
 float accelVertVel = 0;
+float maxAccelVertVel = 0;
 
 float baroAltitudeMSL = 0;
 float baroAltitudeAGL = 0;
@@ -24,6 +25,7 @@ float gnssLongitude = 0;
 float gnssAltitudeMSL = 0;
 float gnssAltitudeAGL = 0;
 float gnssVertVel = 0;
+float maxGnssVertVel = 0;
 float gnssPadAltitude = 0;
 float gnssPDOP = 0;
 bool gnssValidReadings = true;
