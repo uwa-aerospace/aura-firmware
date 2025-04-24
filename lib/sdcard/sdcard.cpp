@@ -112,7 +112,7 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
 
   snprintf(filePath, sizeof(filePath), "%s%s.csv", logPath, logPath);
   
-  const char* header = "time,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,rawAccX,rawAccY,rawAccZ,gyroX,gyroY,gyroZ,rawGyroX,rawGyroY,rawGyroZ,quatnW,quatnX,quatnY,quatnZ,baroAltMSL,baroPres,lat,lon,gnssAltMSL,gnssPDOP\n";
+  const char* header = "time,flightState,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,rawAccX,rawAccY,rawAccZ,gyroX,gyroY,gyroZ,rawGyroX,rawGyroY,rawGyroZ,quatnW,quatnX,quatnY,quatnZ,baroAltMSL,baroPres,lat,lon,gnssAltMSL,gnssPDOP,accLaunch,gnssLaunch,accBrOut,gnssBrOut,baroApo,gnssApo,accApo,gyroApo,baroMain,gnssMain,accLand,gyroLand,baroLand,gnssLand\n";
   if (!writeFile(SD_MMC, filePath, header)) {
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
@@ -195,7 +195,7 @@ void LoggingTask(void* pvParameters) {
   openLogFile(SD_MMC, filePath);
   while (1) {
     EventBits_t bits = xEventGroupWaitBits(
-      sensorEventGroup,
+      loggingEventGroup,
       IMU_SENSOR_EVENT | BARO_SENSOR_EVENT | GNSS_SENSOR_EVENT,
       pdTRUE,
       pdFALSE,
@@ -210,6 +210,7 @@ void LoggingTask(void* pvParameters) {
     if (!firstLog) logTime += dt;
 
     writeFloatData(logTime, 2);
+    writeIntData(flightState);
 
     writeFloatData(baroAltitudeAGL, 2);
     writeFloatData(gnssAltitudeAGL, 2);
@@ -253,6 +254,30 @@ void LoggingTask(void* pvParameters) {
       writeFloatData(gnssAltitudeMSL, 2);
       writeFloatData(gnssPDOP, 2);
     }
+    else {
+      for (int i = 0; i < 4; i++) {
+        dataString[strPosn] = ','; strPosn++;
+      }
+    }
+
+    writeIntData(accelLaunchCtr);
+    writeIntData(gnssLaunchCtr);
+
+    writeIntData(accelBurnoutCtr);
+    writeIntData(gnssBurnoutCtr);
+
+    writeIntData(baroApogeeCtr);
+    writeIntData(gnssApogeeCtr);
+    writeIntData(accelApogeeCtr);
+    writeIntData(gyroApogeeCtr);
+
+    writeIntData(baroMainCtr);
+    writeIntData(gnssMainCtr);
+
+    writeIntData(accelLandingCtr);
+    writeIntData(gyroLandingCtr);
+    writeIntData(baroLandingCtr);
+    writeIntData(gnssLandingCtr);
 
     strPosn--;
     dataString[strPosn] = '\n'; strPosn++;

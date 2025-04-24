@@ -3,25 +3,6 @@
 #include "pyro.h"
 #include "vector_type.h"
 
-uint16_t accelLaunchCtr = 0;
-uint16_t gnssLaunchCtr = 0;
-
-uint16_t accelBurnoutCtr = 0;
-uint16_t gnssBurnoutCtr = 0;
-
-uint16_t baroApogeeCtr = 0;
-uint16_t gnssApogeeCtr = 0;
-uint16_t accelApogeeCtr = 0;
-uint16_t gyroApogeeCtr = 0;
-
-uint16_t baroMainCtr = 0;
-uint16_t gnssMainCtr = 0;
-
-uint16_t accelLandingCtr = 0;
-uint16_t gyroLandingCtr = 0;
-uint16_t baroLandingCtr = 0;
-uint16_t gnssLandingCtr = 0;
-
 int mainDeployAltitude = 0;
 
 esp_timer_handle_t apogeeBackupTimer;
@@ -70,9 +51,9 @@ void FlightLogicTask(void* pvParameters) {
     );
 
     switch (flightState) {
-      case FLIGHT_IDLE:
+      case FLIGHT_IDLE: {
         // do nothing, wait for arm
-        break;
+      } break;
       case FLIGHT_ARMED: {
         /* Launch is detected when 1/2 conditions are true:
          - Accel-based vertical velocity is > 5m/s for 10 readings in a row (20ms delay)

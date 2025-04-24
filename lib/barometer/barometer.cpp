@@ -122,6 +122,7 @@ void BarometerTask(void *pvParameters) {
       baroAltitudeAGL = baroAltitudeMSL - baroPadAltitude;
 
       xEventGroupSetBits(sensorEventGroup, BARO_SENSOR_EVENT);
+      xEventGroupSetBits(loggingEventGroup, BARO_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g, < 2m/s)
       if (baroCalCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {

@@ -30,3 +30,22 @@ float gnssPadAltitude = 0;
 float gnssPDOP = 0;
 bool gnssValidReadings = true;
 bool gnssHasFix = false;
+
+uint16_t accelLaunchCtr = 0;
+uint16_t gnssLaunchCtr = 0;
+
+uint16_t accelBurnoutCtr = 0;
+uint16_t gnssBurnoutCtr = 0;
+
+uint16_t baroApogeeCtr = 0;
+uint16_t gnssApogeeCtr = 0;
+uint16_t accelApogeeCtr = 0;
+uint16_t gyroApogeeCtr = 0;
+
+uint16_t baroMainCtr = 0;
+uint16_t gnssMainCtr = 0;
+
+uint16_t accelLandingCtr = 0;
+uint16_t gyroLandingCtr = 0;
+uint16_t baroLandingCtr = 0;
+uint16_t gnssLandingCtr = 0;

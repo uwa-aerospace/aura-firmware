@@ -63,12 +63,14 @@ TaskHandle_t AccelerometerTaskHandle;
 #define PYRO2 35
 #define PYRO3 34
 #define PYRO4 33
+TaskHandle_t FlightLogicTaskHandle;
 
 #define BUZZER_PIN 45
 
 #define PROGRAMMABLE_LED 46
 
 EventGroupHandle_t sensorEventGroup;
+EventGroupHandle_t loggingEventGroup;
 
 void setup() {
   Serial.begin(460800);
@@ -84,14 +86,14 @@ void setup() {
 
   SetupStatus setupStatus = SETUP_OK;
 
-  // // GNSS SETUP
+  // GNSS SETUP
   Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
   setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
-  // // Barometer SETUP
+  // Barometer SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
-  // // SD card SETUP
+  // SD card SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
   // // Accelerometer SETUP
@@ -106,8 +108,9 @@ void setup() {
   setupFlightLogic(MAIN_DEPLOY_ALT);
 
   sensorEventGroup = xEventGroupCreate();
-  if (sensorEventGroup == NULL) {
-    ESP_LOGE(SETUP_TAG, "Could not initialize sensor event group");
+  loggingEventGroup = xEventGroupCreate();
+  if (sensorEventGroup == NULL || loggingEventGroup == NULL) {
+    ESP_LOGE(SETUP_TAG, "Could not initialize sensor or logging event group");
     setupStatus = SDCARD_ERROR;
   }
 
@@ -130,6 +133,7 @@ void setup() {
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 
   xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
+  xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
 }
 
 void loop() {

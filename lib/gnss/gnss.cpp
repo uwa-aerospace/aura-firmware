@@ -121,6 +121,7 @@ void GnssTask(void *pvParameters) {
           gnssAltitudeAGL = gnssAltitudeMSL - gnssPadAltitude;
 
           xEventGroupSetBits(sensorEventGroup, GNSS_SENSOR_EVENT);
+          xEventGroupSetBits(loggingEventGroup, GNSS_SENSOR_EVENT);
 
           // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g, < 2m/s)
           if (gnssCalCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {

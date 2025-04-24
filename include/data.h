@@ -20,6 +20,7 @@ extern FlightState flightState;
 #define GNSS_SENSOR_EVENT (1 << 2)
 
 extern EventGroupHandle_t sensorEventGroup;
+extern EventGroupHandle_t loggingEventGroup;
 
 // IMU DATA
 extern vec3_t accelRaw; // m/s^2, unfiltered
@@ -50,4 +51,23 @@ extern float gnssPadAltitude;
 extern float gnssPDOP;
 extern bool gnssValidReadings;
 extern bool gnssHasFix;
+
+extern uint16_t accelLaunchCtr;
+extern uint16_t gnssLaunchCtr;
+
+extern uint16_t accelBurnoutCtr;
+extern uint16_t gnssBurnoutCtr;
+
+extern uint16_t baroApogeeCtr;
+extern uint16_t gnssApogeeCtr;
+extern uint16_t accelApogeeCtr;
+extern uint16_t gyroApogeeCtr;
+
+extern uint16_t baroMainCtr;
+extern uint16_t gnssMainCtr;
+
+extern uint16_t accelLandingCtr;
+extern uint16_t gyroLandingCtr;
+extern uint16_t baroLandingCtr;
+extern uint16_t gnssLandingCtr;
 #endif

@@ -256,6 +256,7 @@ void AccelerometerTask(void* pvParameters) {
       tiltAngle = acos(vertDot) * TO_DEGREES;
 
       xEventGroupSetBits(sensorEventGroup, IMU_SENSOR_EVENT);
+      xEventGroupSetBits(loggingEventGroup, IMU_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
       if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
