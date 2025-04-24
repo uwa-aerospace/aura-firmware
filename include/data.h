@@ -23,9 +23,9 @@ extern EventGroupHandle_t sensorEventGroup;
 extern EventGroupHandle_t loggingEventGroup;
 
 // IMU DATA
-extern vec3_t accelRaw; // m/s^2, unfiltered
+extern vec3_t accelRaw; // g, unfiltered
 extern vec3_t gyroRaw;  // dps, unfiltered
-extern vec3_t accelCorrected; // m/s^2, filtered 1D kalman, rotated to world frame
+extern vec3_t accelCorrected; // g, filtered 1D kalman, rotated to world frame
 extern vec3_t gyroCorrected;  // dps, filtered 1D kalman, zero biases subtracted
 
 extern quat_t attitudeQuatn; // result of gyro integration

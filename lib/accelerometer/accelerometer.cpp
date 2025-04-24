@@ -41,6 +41,11 @@ int32_t platform_read(void *ctx, uint8_t reg, uint8_t *bufp, uint16_t len) {
   return 0;
 }
 
+// Reduces any float to 2dp, e.g. 2.04932 -> 2.04
+float reduce2DP(float val) {
+  return (int)(val * 100.0) / 100.0;
+}
+
 SemaphoreHandle_t accelIrqSemaphore;
 void IRAM_ATTR accelInterrupt(void) {
   xSemaphoreGive(accelIrqSemaphore);
@@ -48,7 +53,6 @@ void IRAM_ATTR accelInterrupt(void) {
 
 stmdev_ctx_t dev_ctx;
 
-// "Calculated" values
 float accMeasErr = 6.76 * 1e-4;
 float gyroMeasErr = 0.00601;
 float processVar = 0.001;
@@ -164,7 +168,7 @@ void setGravityRotQuatn() {
   gravityRotQuatn = gravityRotQuatn.norm();
 
   accelCorrected = gravityRotQuatn.rotate(accelCalibrationSums, false);
-  accelGravityOffset = accelCorrected.z - GRAVITY_ACCEL;
+  accelGravityOffset = accelCorrected.z - 1.0f; // Determine sensor offset from gravity
 }
 
 uint64_t lastMeasurement;
@@ -175,9 +179,9 @@ void AccelerometerTask(void* pvParameters) {
       lsm6dsox_acceleration_raw_get(&dev_ctx, accel_unprocessed);
       lsm6dsox_angular_rate_raw_get(&dev_ctx, gyro_unprocessed);
 
-      accelRaw.x = lsm6dsox_from_fs16_to_mg(accel_unprocessed[0]) * 1e-3 * GRAVITY_ACCEL;
-      accelRaw.y = lsm6dsox_from_fs16_to_mg(accel_unprocessed[1]) * 1e-3 * GRAVITY_ACCEL;
-      accelRaw.z = lsm6dsox_from_fs16_to_mg(accel_unprocessed[2]) * 1e-3 * GRAVITY_ACCEL;
+      accelRaw.x = lsm6dsox_from_fs16_to_mg(accel_unprocessed[0]) * 1e-3;
+      accelRaw.y = lsm6dsox_from_fs16_to_mg(accel_unprocessed[1]) * 1e-3;
+      accelRaw.z = lsm6dsox_from_fs16_to_mg(accel_unprocessed[2]) * 1e-3;
 
       gyroRaw.x = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[0]) * 1e-3;
       gyroRaw.y = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[1]) * 1e-3;
@@ -193,12 +197,15 @@ void AccelerometerTask(void* pvParameters) {
 
       if (flightState == FLIGHT_ARMED && shouldCal) {
         if (samplesCollected < samplesRequired) {
-          accelCalibrationSums += accelFiltered;
-          gyroCalibrationSums += gyroFiltered;
-          samplesCollected++;
+          // If the IMU is moving, do not add samples to calibration average
+          if (accelFiltered.mag() > 0.9 && accelFiltered.mag() < 1.1 && gyroFiltered.mag() < 1.5) {
+            accelCalibrationSums += accelFiltered;
+            gyroCalibrationSums += gyroFiltered;
+            samplesCollected++;
+          }
         }
-        // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-        else if (flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
+        // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
+        else if (flightState == FLIGHT_ARMED && accelFiltered.mag() < 1.5) {
           setGravityRotQuatn();
           accelCalibrationSums = vec3_t(0,0,0);
           accelVertVel = 0;
@@ -225,15 +232,23 @@ void AccelerometerTask(void* pvParameters) {
 
       // Accel integration to vertical velocity (does not use gyroscope)
       accelCorrected = gravityRotQuatn.rotate(accelFiltered, false);
-      accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 9.8 as possible
-      accelCorrected.z -= GRAVITY_ACCEL;
-      // accelCorrected.z += 0.01;
+      accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 1G as possible
+      accelCorrected.z -= 1; // Subtract gravity (1G)
+      float accelZ_mSec = accelCorrected.z * GRAVITY_ACCEL;
 
-      accelVertVel += accelCorrected.z * dt;
+      // Only integrate vertical accelerations >2.5G if the rocket is not launched
+      if (flightState == FLIGHT_ARMED && accelCorrected.z > 2.5)
+        accelVertVel += accelZ_mSec * dt;
+      else if (flightState > FLIGHT_ARMED)
+        accelVertVel += accelZ_mSec * dt;
+
       maxAccelVertVel = max(maxAccelVertVel, accelVertVel);
 
       // Gyro integration to orientation quaternion
       gyroCorrected = gyroFiltered - gyroBiases;
+      gyroCorrected.x = reduce2DP(gyroCorrected.x);
+      gyroCorrected.y = reduce2DP(gyroCorrected.y);
+      gyroCorrected.z = reduce2DP(gyroCorrected.z);
       gyroRadsPerSec = gyroCorrected * TO_RADIANS;
 
       vec3_t deltaAngle = gyroRadsPerSec * dt;
@@ -258,8 +273,8 @@ void AccelerometerTask(void* pvParameters) {
       xEventGroupSetBits(sensorEventGroup, IMU_SENSOR_EVENT);
       xEventGroupSetBits(loggingEventGroup, IMU_SENSOR_EVENT);
 
-      // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 2g, < 3m/s)
-      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelVertVel < 2 && accelCorrected.z < 5) {
+      // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
+      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelFiltered.mag() < 1.5) {
         shouldCal = true;
         calCount = 0;
       }
@@ -275,6 +290,7 @@ void AccelerometerTask(void* pvParameters) {
       // printf("Quaternion: %2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z);
       // printf("Quaternion: %2f,%.2f,%.2f,%.2f,%.2f\n", attitudeQuatn.w, attitudeQuatn.v.x, attitudeQuatn.v.y, attitudeQuatn.v.z, tiltAngle);
       // printf("tiltAngle:%.2f\n", tiltAngle);
+      // printf("AccelMag:%.2f\tGyromag:%.2f\n", accelRaw.mag(), gyroRaw.mag());
       // printf(">dt:%.2f\n", dt*1e+3);
     }
   }

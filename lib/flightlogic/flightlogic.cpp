@@ -57,13 +57,12 @@ void FlightLogicTask(void* pvParameters) {
       case FLIGHT_ARMED: {
         /* Launch is detected when 1/2 conditions are true:
          - Accel-based vertical velocity is > 5m/s for 10 readings in a row (20ms delay)
-         - Accel-based Z-acceleration is > 2.5G for 10 readings in a row (coupled with first condition)
          - GNSS vertical velocity > 5m/s for 5 readings in a row (200ms delay)
         */
 
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (accelVertVel > 5 && accelCorrected.z > 14.5)
+          if (accelVertVel > 5)
             accelLaunchCtr++;
           else // Reset counter if condition is no longer true (counters transients)
             accelLaunchCtr = 0;
@@ -184,18 +183,18 @@ void FlightLogicTask(void* pvParameters) {
         /* Landing is detected when 1/4 conditions are true:
          - Barometric velocity is between -0.5 and 0.5 for 50 readings in a row
          - GNSS velocity is between -0.5 and 0.5 for 25 readings in a row
-         - Magnitude of accel is between 9.5 and 10.5 for 50 readings in a row
-         - Magnitude of gyro rates is between 0 and 1.5 for 50 readings in a row
+         - Magnitude of accel is between 0.9-1.1G for 50 readings in a row
+         - Magnitude of gyro rates is between 0 and 1.5 deg/sec for 50 readings in a row
         */
         if (bits & IMU_SENSOR_EVENT) {
           float accelMag = accelRaw.mag();
-          if (accelMag > 9.5 && accelMag < 10.5)
+          if (accelMag > 0.9 && accelMag < 1.1)
             accelLandingCtr++;
           else
             accelLandingCtr = 0;
 
           float gyroMag = gyroRaw.mag();
-          if (gyroMag >= 0 && gyroMag < 1.5)
+          if (gyroMag < 1.5)
             gyroLandingCtr++;
           else
             gyroLandingCtr = 0;
@@ -221,7 +220,6 @@ void FlightLogicTask(void* pvParameters) {
         
       } break;
       default: {
-        // stub
       } break;
     }
   }

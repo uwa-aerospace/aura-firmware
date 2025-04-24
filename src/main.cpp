@@ -86,17 +86,17 @@ void setup() {
 
   SetupStatus setupStatus = SETUP_OK;
 
-  // GNSS SETUP
-  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  // // GNSS SETUP
+  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
-  // Barometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  // // Barometer SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
-  // SD card SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+  // // SD card SETUP
+  // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
-  // // Accelerometer SETUP
+  // Accelerometer SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
 
   // // Radio SETUP
@@ -127,13 +127,13 @@ void setup() {
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks
-  xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
-  xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
+  // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
+  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 
-  xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
-  xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
+  // xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
+  // xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
 }
 
 void loop() {
