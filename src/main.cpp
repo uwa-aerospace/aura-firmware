@@ -1,8 +1,9 @@
 #include <Arduino.h>
 
 // #include <WiFi.h>
-// #include "esp_bt.h"
-// #include "esp_wifi.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_wifi.h"
 // #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
@@ -13,13 +14,11 @@
 #include "status.h"
 
 // Flight computer peripherals
-#include "gnss.h"
 #include "barometer.h"
 #include "sdcard.h"
 #include "buzzer.h"
 #include "accelerometer.h"
 #include "radio.h"
-#include "pyro.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -62,23 +61,19 @@ TaskHandle_t AccelerometerTaskHandle;
 
 #define PROGRAMMABLE_LED 46
 
-void setup() {
+void setup()
+{
   Serial.begin(460800);
-
-  // Disable WiFi and BLE to save power
-  // WiFi.disconnect(true);
-  // WiFi.mode(WIFI_OFF);
-  // esp_wifi_deinit();
-
-  // esp_bt_controller_disable();
-  // esp_bt_controller_deinit();
-  // esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
 
   SetupStatus setupStatus = SETUP_OK;
 
-  // // GNSS SETUP
-  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  esp_wifi_stop();
+  esp_wifi_deinit();
+
+  esp_bluedroid_disable();
+  esp_bluedroid_deinit();
+  esp_bt_controller_disable();
+  esp_bt_controller_deinit();
 
   // // Barometer SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
@@ -89,35 +84,28 @@ void setup() {
   // // Accelerometer SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
 
-  // // Radio SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
-
-  // // Pyro SETUP
-  setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
-
-  // Buzzer SETUP
-  setupBuzzer(BUZZER_PIN);
-
-  if (setupStatus != SETUP_OK) {
+  if (setupStatus != SETUP_OK)
+  {
     ESP_LOGE(SETUP_TAG, "%d", setupStatus);
-    
+
     // Notify user that setup failed
     shortBeepXTimes(5);
 
-    while (1); // Do not proceed with execution
+    while (1)
+      ; // Do not proceed with execution
   }
- 
+
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks
   // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
   // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
-  xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);
+  xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 32767, NULL, 2, &AccelerometerTaskHandle, 1);
   // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 
-  xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
+  xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 65535 * 2, NULL, 3, &LoggingTaskHandle, 1);
 }
 
-void loop() {
-
+void loop()
+{
 }

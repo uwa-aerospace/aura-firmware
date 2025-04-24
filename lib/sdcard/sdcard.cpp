@@ -9,17 +9,22 @@
 
 File logFile;
 
-bool createDir(fs::FS &fs, const char *path) {
-  if (fs.mkdir(path)) {
+bool createDir(fs::FS &fs, const char *path)
+{
+  if (fs.mkdir(path))
+  {
     ESP_LOGI(TAG, "Dir %s created", path);
     return true;
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG, "mkdir failed");
     return false;
   }
 }
 
-bool dirExists(fs::FS &fs, const char *dirname) {
+bool dirExists(fs::FS &fs, const char *dirname)
+{
   File root = fs.open(dirname);
 
   if (!root)
@@ -30,7 +35,8 @@ bool dirExists(fs::FS &fs, const char *dirname) {
   return isDir;
 }
 
-bool writeFile(fs::FS &fs, const char *path, const char *message) {
+bool writeFile(fs::FS &fs, const char *path, const char *message)
+{
   File file = fs.open(path, FILE_WRITE);
   if (!file)
     return false;
@@ -41,27 +47,35 @@ bool writeFile(fs::FS &fs, const char *path, const char *message) {
     return false;
 }
 
-bool openLogFile(fs::FS &fs, const char *path) {
+bool openLogFile(fs::FS &fs, const char *path)
+{
   logFile = fs.open(path, FILE_APPEND);
-  if (!logFile) {
+  if (!logFile)
+  {
     ESP_LOGE(TAG, "Failed to open file for appending");
     return false;
   }
   return true;
 }
 
-bool appendToOpenFile(const char *message) {
-  if (!logFile) return false;
-  if (logFile.print(message)) return true;
+bool appendToOpenFile(const char *message)
+{
+  if (!logFile)
+    return false;
+  if (logFile.print(message))
+    return true;
   ESP_LOGE(TAG, "Append failed");
   return false;
 }
 
-void flushLogFile() {
-  if (logFile) logFile.flush();
+void flushLogFile()
+{
+  if (logFile)
+    logFile.flush();
 }
 
-void incrementLogPath(char* logPath) {
+void incrementLogPath(char *logPath)
+{
   size_t baseDirNameLen = strlen(BASE_DIR_NAME);
   int number;
   sscanf(logPath + baseDirNameLen, "%4d", &number);
@@ -73,19 +87,23 @@ char filePath[2 * sizeof(logPath) + 3];
 
 EventGroupHandle_t loggingEventGroup;
 
-SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3) {
-  if (!SD_MMC.setPins(clk, cmd, d0, d1, d2, d3)) {
+SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3)
+{
+  if (!SD_MMC.setPins(clk, cmd, d0, d1, d2, d3))
+  {
     ESP_LOGE(TAG, "Failed to change SD card pins");
     return SDCARD_ERROR;
   }
 
-  if (!SD_MMC.begin()) {
+  if (!SD_MMC.begin())
+  {
     ESP_LOGE(TAG, "Failed to mount SD card");
     return SDCARD_ERROR;
   }
 
   uint8_t cardType = SD_MMC.cardType();
-  if (cardType == CARD_NONE) {
+  if (cardType == CARD_NONE)
+  {
     ESP_LOGE(TAG, "No SD card inserted");
     return SDCARD_ERROR;
   }
@@ -94,9 +112,12 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
   printf("SD_MMC Card Size: %lluMB\n", cardSize);
 
   // Create base folder for this logging instance
-  for (uint32_t i = 0; i < 10000; i++) {
-    if (!dirExists(SD_MMC, logPath)) {
-      if (!createDir(SD_MMC, logPath)) {
+  for (uint32_t i = 0; i < 10000; i++)
+  {
+    if (!dirExists(SD_MMC, logPath))
+    {
+      if (!createDir(SD_MMC, logPath))
+      {
         ESP_LOGE(TAG, "Failed to create base folder");
         return SDCARD_ERROR;
       }
@@ -106,21 +127,24 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
 
     incrementLogPath(logPath);
 
-    if (i == 9999) {
+    if (i == 9999)
+    {
       ESP_LOGE(TAG, "Folder count limit reached");
       return SDCARD_ERROR;
     }
   }
 
-  snprintf(filePath, sizeof(filePath), "%s%s.csv", logPath, logPath);
-  const char* header = "timestamp,verticalVelocity,accelX,accelY,accelZ,rawAccelX,rawAccelY,rawAccelZ,gyroX,gyroY,gyroZ,rawGyroX,rawGyroY,rawGyroZ,quatnW,quatnX,quatnY,quatnZ\n";
-  if (!writeFile(SD_MMC, filePath, header)) {
+  snprintf(filePath, sizeof(filePath), "%s%s.bin", logPath, logPath);
+  const char *header = "";
+  if (!writeFile(SD_MMC, filePath, header))
+  {
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
   }
 
   loggingEventGroup = xEventGroupCreate();
-  if (loggingEventGroup == NULL) {
+  if (loggingEventGroup == NULL)
+  {
     ESP_LOGE(TAG, "Could not initialize logging event group");
     return RADIO_ERROR;
   }
@@ -134,119 +158,207 @@ int strPosn = 0;
 const uint8_t base = 10;
 const char cs = ',';
 
-void writeIntData(int dataValue) {
+void writeIntData(int dataValue)
+{
   itoa(dataValue, dataString + strPosn, base);
-  while(dataString[strPosn]!= '\0'){strPosn++;}
+  while (dataString[strPosn] != '\0')
+  {
+    strPosn++;
+  }
   dataString[strPosn] = cs;
   strPosn++;
 }
 
-void writeULongData(unsigned long dataValue){
+void writeULongData(unsigned long dataValue)
+{
   ultoa(dataValue, dataString + strPosn, base);
-  while(dataString[strPosn]!= '\0'){strPosn++;}
+  while (dataString[strPosn] != '\0')
+  {
+    strPosn++;
+  }
   dataString[strPosn] = cs;
   strPosn++;
 }
 
-void writeLongData(long dataValue){
+void writeLongData(long dataValue)
+{
   ltoa(dataValue, dataString + strPosn, base);
-  while(dataString[strPosn]!= '\0'){strPosn++;}
+  while (dataString[strPosn] != '\0')
+  {
+    strPosn++;
+  }
   dataString[strPosn] = cs;
   strPosn++;
 }
 
-void writeFloatData(float dataValue, byte decimals){
+void writeFloatData(float dataValue, byte decimals)
+{
   long fracInt;
   float partial;
 
-  //sign portion
-  if (dataValue < 0) {
-    dataString[strPosn] = '-'; 
+  // sign portion
+  if (dataValue < 0)
+  {
+    dataString[strPosn] = '-';
     strPosn++;
     dataValue *= -1;
   }
-  
-  //integer portion
+
+  // integer portion
   itoa((int)dataValue, dataString + strPosn, base);
-  while(dataString[strPosn]!= '\0'){ strPosn++; }
-  dataString[strPosn]='.'; strPosn++;
-  
-  //fractional portion
-  partial = dataValue - (int)(dataValue);
-  fracInt = (long)(partial*powf(10,decimals));
-  if (fracInt == 0) {
-    dataString[strPosn] = '0'; 
-    strPosn++; 
-    dataString[strPosn] = cs; 
+  while (dataString[strPosn] != '\0')
+  {
     strPosn++;
   }
-  else {
+  dataString[strPosn] = '.';
+  strPosn++;
+
+  // fractional portion
+  partial = dataValue - (int)(dataValue);
+  fracInt = (long)(partial * powf(10, decimals));
+  if (fracInt == 0)
+  {
+    dataString[strPosn] = '0';
+    strPosn++;
+    dataString[strPosn] = cs;
+    strPosn++;
+  }
+  else
+  {
     decimals--;
-    while(fracInt < powf(10, decimals)){ 
-      dataString[strPosn]='0';
+    while (fracInt < powf(10, decimals))
+    {
+      dataString[strPosn] = '0';
       strPosn++;
-      decimals--; 
+      decimals--;
     }
     ltoa(fracInt, dataString + strPosn, base);
-    while(dataString[strPosn]!= '\0'){ strPosn++; }
-    dataString[strPosn]=','; strPosn++;
+    while (dataString[strPosn] != '\0')
+    {
+      strPosn++;
+    }
+    dataString[strPosn] = ',';
+    strPosn++;
   }
 }
 
 float logTime = 0;
 uint64_t lastLogTime = 0;
-uint64_t numLogs = 0;
+unsigned long last_flush_time = 0;
+uint64_t batchLogs = 0;
+uint32_t total_logs = 0;
 
-void LoggingTask(void* pvParameters) {
+struct data
+{
+  uint32_t header;
+  float logTime;
+  float accelVertVel;
+  struct accelCorrected
+  {
+    float x;
+    float y;
+    float z;
+  } accelCorrected;
+  struct accelMs
+  {
+    float x;
+    float y;
+    float z;
+  } accelMs;
+  struct gyroCorrected
+  {
+    float x;
+    float y;
+    float z;
+  } gyroCorrected;
+  struct gyroDps
+  {
+    float x;
+    float y;
+    float z;
+  } gyroDps;
+  struct attitudeQuatn
+  {
+    float w;
+    float v_x;
+    float v_y;
+    float v_z;
+  } attitudeQuatn;
+};
+
+#define LOG_BATCH 800
+
+struct data data_batch[LOG_BATCH];
+
+void LoggingTask(void *pvParameters)
+{
   openLogFile(SD_MMC, filePath);
-  while (1) {
+  last_flush_time = millis();
+  while (1)
+  {
     EventBits_t bits = xEventGroupWaitBits(
-      loggingEventGroup,
-      IMU_LOGGING_BIT | BARO_LOGGING_BIT | GNSS_LOGGING_BIT,
-      pdTRUE,
-      pdFALSE,
-      portMAX_DELAY
-    );
+        loggingEventGroup,
+        IMU_LOGGING_BIT | BARO_LOGGING_BIT | GNSS_LOGGING_BIT,
+        pdTRUE,
+        pdFALSE,
+        portMAX_DELAY);
 
     uint64_t now = micros();
     float dt = (now - lastLogTime) * 1e-3;
     lastLogTime = now;
 
-    if (dt < 1000) logTime += dt;
+    if (dt < 1000)
+      logTime += dt;
 
-    writeFloatData(logTime, 2);
+    struct data data_sample =
+        {
+            .header = 0x69694269,
+            .logTime = logTime,
+            .accelVertVel = accelVertVel,
+            .accelCorrected = {.x = accelCorrected.x, .y = accelCorrected.y, .z = accelCorrected.z},
+            .accelMs = {.x = accelMs.x, .y = accelMs.y, .z = accelMs.z},
+            .gyroCorrected = {.x = gyroCorrected.x, .y = gyroCorrected.y, .z = gyroCorrected.z},
+            .gyroDps = {.x = gyroDps.x, .y = gyroDps.y, .z = gyroDps.z},
+            .attitudeQuatn = {.w = attitudeQuatn.w, .v_x = attitudeQuatn.v.x, .v_y = attitudeQuatn.v.y, .v_z = attitudeQuatn.v.z},
+        };
+    data_batch[batchLogs++] = data_sample;
+    total_logs++;
 
-    writeFloatData(accelVertVel, 2);
-    writeFloatData(accelCorrected.x, 2);
-    writeFloatData(accelCorrected.y, 2);
-    writeFloatData(accelCorrected.z, 2);
-    writeFloatData(accelMs.x, 2);
-    writeFloatData(accelMs.y, 2);
-    writeFloatData(accelMs.z, 2);
+    // writeFloatData(logTime, 5);
+    // writeFloatData(accelVertVel, 5);
+    // writeFloatData(accelCorrected.x, 5);
+    // writeFloatData(accelCorrected.y, 5);
+    // writeFloatData(accelCorrected.z, 5);
+    // writeFloatData(accelMs.x, 5);
+    // writeFloatData(accelMs.y, 5);
+    // writeFloatData(accelMs.z, 5);
+    // writeFloatData(gyroCorrected.x, 5);
+    // writeFloatData(gyroCorrected.y, 5);
+    // writeFloatData(gyroCorrected.z, 5);
+    // writeFloatData(gyroDps.x, 5);
+    // writeFloatData(gyroDps.y, 5);
+    // writeFloatData(gyroDps.z, 5);
+    // writeFloatData(attitudeQuatn.w, 5);
+    // writeFloatData(attitudeQuatn.v.x, 5);
+    // writeFloatData(attitudeQuatn.v.y, 5);
+    // writeFloatData(attitudeQuatn.v.z, 5);
 
-    writeFloatData(gyroCorrected.x, 2);
-    writeFloatData(gyroCorrected.y, 2);
-    writeFloatData(gyroCorrected.z, 2);
-    writeFloatData(gyroDps.x, 2);
-    writeFloatData(gyroDps.y, 2);
-    writeFloatData(gyroDps.z, 2);
-    writeFloatData(attitudeQuatn.w, 5);
-    writeFloatData(attitudeQuatn.v.x, 5);
-    writeFloatData(attitudeQuatn.v.y, 5);
-    writeFloatData(attitudeQuatn.v.z, 5);
+    // dataString[strPosn] = '\r';
+    // strPosn++;
+    // dataString[strPosn] = '\n';
+    // strPosn++;
+    // dataString[strPosn] = '\0';
 
-    dataString[strPosn] = '\r'; strPosn++;
-    dataString[strPosn] = '\n'; strPosn++;
-    dataString[strPosn] = '\0';
+    // appendToOpenFile(dataString);
+    // strPosn = 0;
 
-    appendToOpenFile(dataString);
-    strPosn = 0;
-
-    if (numLogs > 4000) { // Save to file every ~10 seconds
+    if (batchLogs >= LOG_BATCH)
+    {
       flushLogFile();
-      numLogs = 0;
+      logFile.write((const uint8_t *)&data_batch, sizeof(data_batch));
+      ESP_LOGI(TAG, "Flush %d ms, %d samples", millis() - last_flush_time, total_logs);
+      last_flush_time = millis();
+      batchLogs = 0;
     }
-    
-    numLogs++;
   }
 }
