@@ -15,14 +15,13 @@
 #define TO_RADIANS (PI / 180)
 #define TO_DEGREES (180 / PI)
 
-SPIClass* accelSpi = &SPI;
 uint8_t accelCsPin;
 
 int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len) {
   digitalWrite(accelCsPin, LOW);
-  accelSpi->transfer(reg);
+  SPI.transfer(reg);
   for (uint16_t i = 0; i < len; i++) {
-    accelSpi->transfer(bufp[i]);
+    SPI.transfer(bufp[i]);
   }
   digitalWrite(accelCsPin, HIGH);
 
@@ -32,9 +31,9 @@ int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t 
 int32_t platform_read(void *ctx, uint8_t reg, uint8_t *bufp, uint16_t len) {
   reg |= 0x80;
   digitalWrite(accelCsPin, LOW);
-  accelSpi->transfer(reg);
+  SPI.transfer(reg);
   for (uint16_t i = 0; i < len; i++) {
-    bufp[i] = accelSpi->transfer(0x00);
+    bufp[i] = SPI.transfer(0x00);
   }
   digitalWrite(accelCsPin, HIGH);
   
@@ -65,14 +64,11 @@ SimpleKalmanFilter kfGyroX(gyroMeasErr, gyroMeasErr, processVar);
 SimpleKalmanFilter kfGyroY(gyroMeasErr, gyroMeasErr, processVar);
 SimpleKalmanFilter kfGyroZ(gyroMeasErr, gyroMeasErr, processVar);
 
-SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint8_t interrupt) {
+SetupStatus setupAccelerometer(uint8_t cs, uint8_t interrupt) {
   accelCsPin = cs;
 
   pinMode(accelCsPin, OUTPUT);
   digitalWrite(accelCsPin, HIGH);
-
-  accelSpi->begin(sck, miso, mosi, cs);
-  accelSpi->setFrequency(10000000); // 10 MHz
 
   dev_ctx.write_reg = platform_write;
   dev_ctx.read_reg = platform_read;
@@ -102,6 +98,7 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   lsm6dsox_pin_int2_route_get(&dev_ctx, NULL, &int2_route);
   int2_route.drdy_g = PROPERTY_ENABLE;
   lsm6dsox_pin_int2_route_set(&dev_ctx, NULL, int2_route);
+  // lsm6dsox_int_notification_set(&dev_ctx, LSM6DSOX_ALL_INT_LATCHED);
 
   accelIrqSemaphore = xSemaphoreCreateBinary();
   if (accelIrqSemaphore == NULL) {

@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "SPI.h"
 
 // #include <WiFi.h>
 // #include "esp_bt.h"
@@ -66,8 +67,8 @@ TaskHandle_t AccelerometerTaskHandle;
 TaskHandle_t FlightLogicTaskHandle;
 
 #define BUZZER_PIN 45
-
 #define PROGRAMMABLE_LED 46
+#define MEM_CS 3
 
 EventGroupHandle_t sensorEventGroup;
 EventGroupHandle_t loggingEventGroup;
@@ -87,6 +88,14 @@ void setup() {
 
   SetupStatus setupStatus = SETUP_OK;
 
+  // Reset all SPI CS pins to prevent multi-access
+  pinMode(RADIO_CS, OUTPUT);
+  pinMode(ACCEL_CS, OUTPUT);
+  pinMode(MEM_CS, OUTPUT);
+  digitalWrite(RADIO_CS, HIGH);
+  digitalWrite(ACCEL_CS, HIGH);
+  digitalWrite(MEM_CS, HIGH);
+
   // // GNSS SETUP
   // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
@@ -97,8 +106,9 @@ void setup() {
   // SD card SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
-  // Accelerometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
+  // Setup shared SPI bus to avoid individual SPI setup clashes
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  SPI.setFrequency(10000000);
 
   // Radio SETUP
   spiMutex = xSemaphoreCreateMutex();
@@ -106,6 +116,9 @@ void setup() {
     setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY, RADIO_FREQ));
   else
     setupStatus = RADIO_ERROR;
+
+  // Accelerometer SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(ACCEL_CS, ACCEL_INT));
 
   // Misc setups, no checks required because they will generally always succeed
   setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
@@ -127,7 +140,7 @@ void setup() {
 
     while (1); // Do not proceed with execution
   }
- 
+
   delay(1000);
   // shortBeepXTimes(1);
 

@@ -112,7 +112,7 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
 
   snprintf(filePath, sizeof(filePath), "%s%s.csv", logPath, logPath);
   
-  const char* header = "time,flightState,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,rawAccX,rawAccY,rawAccZ,gyroX,gyroY,gyroZ,rawGyroX,rawGyroY,rawGyroZ,quatnW,quatnX,quatnY,quatnZ,baroAltMSL,baroPres,lat,lon,gnssAltMSL,gnssPDOP,accLaunch,gnssLaunch,accBrOut,gnssBrOut,baroApo,gnssApo,accApo,gyroApo,baroMain,gnssMain,accLand,gyroLand,baroLand,gnssLand\n";
+  const char* header = "time,flightState,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,gyroX,gyroY,gyroZ,quatnW,quatnX,quatnY,quatnZ,rawAccX,rawAccY,rawAccZ,rawGyroX,rawGyroY,rawGyroZ,baroAltMSL,baroPres,lat,lon,gnssAltMSL,gnssPDOP,accLaunch,gnssLaunch,accBrOut,gnssBrOut,baroApo,gnssApo,accApo,gyroApo,baroMain,gnssMain,accLand,gyroLand,baroLand,gnssLand\n";
   if (!writeFile(SD_MMC, filePath, header)) {
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
@@ -210,20 +210,23 @@ void LoggingTask(void* pvParameters) {
     writeFloatData(accelCorrected.x, 2);
     writeFloatData(accelCorrected.y, 2);
     writeFloatData(accelCorrected.z, 2);
-    writeFloatData(accelRaw.x, 2);
-    writeFloatData(accelRaw.y, 2);
-    writeFloatData(accelRaw.z, 2);
 
     writeFloatData(gyroCorrected.x, 2);
     writeFloatData(gyroCorrected.y, 2);
     writeFloatData(gyroCorrected.z, 2);
-    writeFloatData(gyroRaw.x, 2);
-    writeFloatData(gyroRaw.y, 2);
-    writeFloatData(gyroRaw.z, 2);
+
     writeFloatData(attitudeQuatn.w, 5);
     writeFloatData(attitudeQuatn.v.x, 5);
     writeFloatData(attitudeQuatn.v.y, 5);
     writeFloatData(attitudeQuatn.v.z, 5);
+
+    writeFloatData(accelRaw.x, 2);
+    writeFloatData(accelRaw.y, 2);
+    writeFloatData(accelRaw.z, 2);
+
+    writeFloatData(gyroRaw.x, 2);
+    writeFloatData(gyroRaw.y, 2);
+    writeFloatData(gyroRaw.z, 2);
 
     if (bits & BARO_SENSOR_EVENT) {
       writeFloatData(baroAltitudeMSL, 2);
