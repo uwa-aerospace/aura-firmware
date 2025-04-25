@@ -17,6 +17,15 @@
 
 #include "Arduino.h"
 #include "LoraSx1262.h"
+#include "data.h"
+#include "vector_type.h"
+
+#define TAG "SX1262"
+
+SemaphoreHandle_t loraBusySemaphore;
+void IRAM_ATTR loraBusyIRQ(void) {
+  xSemaphoreGive(loraBusySemaphore);
+}
 
 bool LoraSx1262::begin() {
   //Set up SPI to talk to the LoRa Radio shield
@@ -43,6 +52,13 @@ bool LoraSx1262::begin() {
     digitalWrite(RADIO_RESET, 1); delay(50);
   }
   
+  loraBusySemaphore = xSemaphoreCreateBinary();
+  if (loraBusySemaphore == NULL) {
+    ESP_LOGE(TAG, "Failed to initialize LoRa busy semaphore");
+    return false;
+  }
+
+  attachInterrupt(RADIO_BUSY, loraBusyIRQ, FALLING);
   
   //Ensure SPI communication is working with the radio
   bool success = sanityCheck();
@@ -183,53 +199,65 @@ void LoraSx1262::transmit(char *data, int dataLen) {
     setModeStandby();
   }
 
-  digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-  spiBuff[0] = 0x8C;          //Opcode for "SetPacketParameters"
-  spiBuff[1] = 0x00;          //PacketParam1 = Preamble Len MSB
-  spiBuff[2] = 0x0C;          //PacketParam2 = Preamble Len LSB
-  spiBuff[3] = 0x00;          //PacketParam3 = Header Type. 0x00 = Variable Len, 0x01 = Fixed Length
-  spiBuff[4] = dataLen;       //PacketParam4 = Payload Length (Max is 255 bytes)
-  spiBuff[5] = 0x00;          //PacketParam5 = CRC Type. 0x00 = Off, 0x01 = on
-  spiBuff[6] = 0x00;          //PacketParam6 = Invert IQ.  0x00 = Standard, 0x01 = Inverted
-  SPI.transfer(spiBuff,7);
-  digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
+    spiBuff[0] = 0x8C;          //Opcode for "SetPacketParameters"
+    spiBuff[1] = 0x00;          //PacketParam1 = Preamble Len MSB
+    spiBuff[2] = 0x0C;          //PacketParam2 = Preamble Len LSB
+    spiBuff[3] = 0x00;          //PacketParam3 = Header Type. 0x00 = Variable Len, 0x01 = Fixed Length
+    spiBuff[4] = dataLen;       //PacketParam4 = Payload Length (Max is 255 bytes)
+    spiBuff[5] = 0x00;          //PacketParam5 = CRC Type. 0x00 = Off, 0x01 = on
+    spiBuff[6] = 0x00;          //PacketParam6 = Invert IQ.  0x00 = Standard, 0x01 = Inverted
+    SPI.transfer(spiBuff,7);
+    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+
+    xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
+  }
   waitForRadioCommandCompletion(100);  //Give time for radio to process the command
 
   //Write the payload to the buffer
   //  Reminder: PayloadLength is defined in setPacketParams
-  digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-  spiBuff[0] = 0x0E,          //Opcode for WriteBuffer command
-  spiBuff[1] = 0x00;          //Dummy byte before writing payload
-  SPI.transfer(spiBuff,2);    //Send header info
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
+    spiBuff[0] = 0x0E,          //Opcode for WriteBuffer command
+    spiBuff[1] = 0x00;          //Dummy byte before writing payload
+    SPI.transfer(spiBuff,2);    //Send header info
 
-  //SPI.transfer overwrites original buffer.  This could probably be confusing to the user
-  //If they tried writing the same buffer twice and got different results
-  //Eg "radio.transmit(buff,10); radio.transmit(buff,10);" would transmit two different packets
-  //We'll make a performance+memory compromise and write in 32 byte chunks to avoid changing the contents
-  //of the original data array
-  //Copy contents to SPI buff until it's full, and then write that
-  //TEST: I tested this method, which uses about 0.1ms (100 microseconds) more time, but it saves us about 10% of ram.
-  //I think this is a fair trade 
-  uint8_t size = sizeof(spiBuff);
-  for (uint16_t i = 0; i < dataLen; i += size) {
-    if (i + size > dataLen) { size = dataLen - i; }
-    memcpy(spiBuff,&(data[i]),size);
-    SPI.transfer(spiBuff,size); //Write the payload itself
+    //SPI.transfer overwrites original buffer.  This could probably be confusing to the user
+    //If they tried writing the same buffer twice and got different results
+    //Eg "radio.transmit(buff,10); radio.transmit(buff,10);" would transmit two different packets
+    //We'll make a performance+memory compromise and write in 32 byte chunks to avoid changing the contents
+    //of the original data array
+    //Copy contents to SPI buff until it's full, and then write that
+    //TEST: I tested this method, which uses about 0.1ms (100 microseconds) more time, but it saves us about 10% of ram.
+    //I think this is a fair trade 
+    uint8_t size = sizeof(spiBuff);
+    for (uint16_t i = 0; i < dataLen; i += size) {
+      if (i + size > dataLen) { size = dataLen - i; }
+      memcpy(spiBuff,&(data[i]),size);
+      SPI.transfer(spiBuff,size); //Write the payload itself
+    }
+
+
+    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+   
+    xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
   }
-
-
-  digitalWrite(RADIO_NSS,1); //Disable radio chip-select
   waitForRadioCommandCompletion(1000);   //Give time for radio to process the command
 
   //Transmit!
   // An interrupt will be triggered if we surpass our timeout
-  digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-  spiBuff[0] = 0x83;          //Opcode for SetTx command
-  spiBuff[1] = 0xFF;          //Timeout (3-byte number)
-  spiBuff[2] = 0xFF;          //Timeout (3-byte number)
-  spiBuff[3] = 0xFF;          //Timeout (3-byte number)
-  SPI.transfer(spiBuff,4);
-  digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
+    spiBuff[0] = 0x83;          //Opcode for SetTx command
+    spiBuff[1] = 0xFF;          //Timeout (3-byte number)
+    spiBuff[2] = 0xFF;          //Timeout (3-byte number)
+    spiBuff[3] = 0xFF;          //Timeout (3-byte number)
+    SPI.transfer(spiBuff,4);
+    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+   
+    xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
+  }
   waitForRadioCommandCompletion(this->transmitTimeout); //Wait for tx to complete, with a timeout so we don't wait forever
 
   //Remember that we are in Tx mode.  If we want to receive a packet, we need to switch into receiving mode
@@ -243,48 +271,9 @@ Specify a timeout (in milliseconds) to avoid an infinite loop if something happe
 Returns TRUE on success, FALSE if timeout hit
 */
 bool LoraSx1262::waitForRadioCommandCompletion(uint32_t timeout) {
-  uint32_t startTime = millis();
-  bool dataTransmitted = false;
-
-  //Keep checking radio status until it has completed
-  while (!dataTransmitted) {
-    //Wait some time between spamming SPI status commands, asking if the chip is ready yet
-    //Some commands take a bit before the radio even changes into a busy state,
-    //so if we check too fast we might pre-maturely think we're done processing the command
-    //3ms delay gives inconsistent results.  4ms seems stable.  Using 5ms to be safe
-    delay(5);
-
-    //Ask the radio for a status update
-    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-    spiBuff[0] = 0xC0;          //Opcode for "getStatus" command
-    spiBuff[1] = 0x00;          //Dummy byte, status will overwrite this byte
-    SPI.transfer(spiBuff,2);
-    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
-
-    //Parse out the status (see datasheet for what each bit means)
-    uint8_t chipMode = (spiBuff[1] >> 4) & 0x7;     //Chip mode is bits [6:4] (3-bits)
-    uint8_t commandStatus = (spiBuff[1] >> 1) & 0x7;//Command status is bits [3:1] (3-bits)
-    
-    //Status 0, 1, 2 mean we're still busy.  Anything else means we're done.
-    //Commands 3-6 = command timeout, command processing error, failure to execute command, and Tx Done (respoectively)
-    if (commandStatus != 0 && commandStatus != 1 && commandStatus != 2) {
-      dataTransmitted = true;
-    }
-
-    //If we're in standby mode, we don't need to wait at all
-    //0x03 = STBY_XOSC, 0x02= STBY_RC
-    if (chipMode == 0x03 || chipMode == 0x02) {
-      dataTransmitted = true;
-    }
-
-    //Avoid infinite loop by implementing a timeout
-    if (millis() - startTime >= timeout) {
-      return false;
-    }
-  }
-
-  //We did it!
-  return true;
+  if (digitalRead(RADIO_BUSY) == false)
+    return true; 
+  return (xSemaphoreTake(loraBusySemaphore, timeout) == pdTRUE);
 }
 
 //Sets the radio into receive mode, allowing it to listen for incoming packets.
@@ -294,27 +283,35 @@ void LoraSx1262::setModeReceive() {
   if (inReceiveMode) { return; }  //We're already in receive mode, this would do nothing
 
   //Set packet parameters
-  digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-  spiBuff[0] = 0x8C;          //Opcode for "SetPacketParameters"
-  spiBuff[1] = 0x00;          //PacketParam1 = Preamble Len MSB
-  spiBuff[2] = 0x0C;          //PacketParam2 = Preamble Len LSB
-  spiBuff[3] = 0x00;          //PacketParam3 = Header Type. 0x00 = Variable Len, 0x01 = Fixed Length
-  spiBuff[4] = 0xFF;          //PacketParam4 = Payload Length (Max is 255 bytes)
-  spiBuff[5] = 0x00;          //PacketParam5 = CRC Type. 0x00 = Off, 0x01 = on
-  spiBuff[6] = 0x00;          //PacketParam6 = Invert IQ.  0x00 = Standard, 0x01 = Inverted
-  SPI.transfer(spiBuff,7);
-  digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
+    spiBuff[0] = 0x8C;          //Opcode for "SetPacketParameters"
+    spiBuff[1] = 0x00;          //PacketParam1 = Preamble Len MSB
+    spiBuff[2] = 0x0C;          //PacketParam2 = Preamble Len LSB
+    spiBuff[3] = 0x00;          //PacketParam3 = Header Type. 0x00 = Variable Len, 0x01 = Fixed Length
+    spiBuff[4] = 0xFF;          //PacketParam4 = Payload Length (Max is 255 bytes)
+    spiBuff[5] = 0x00;          //PacketParam5 = CRC Type. 0x00 = Off, 0x01 = on
+    spiBuff[6] = 0x00;          //PacketParam6 = Invert IQ.  0x00 = Standard, 0x01 = Inverted
+    SPI.transfer(spiBuff,7);
+    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+
+    xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
+  }
   waitForRadioCommandCompletion(100);
 
   // Tell the chip to wait for it to receive a packet.
   // Based on our previous config, this should throw an interrupt when we get a packet
-  digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-  spiBuff[0] = 0x82;          //0x82 is the opcode for "SetRX"
-  spiBuff[1] = 0xFF;          //24-bit timeout, 0xFFFFFF means no timeout
-  spiBuff[2] = 0xFF;          // ^^
-  spiBuff[3] = 0xFF;          // ^^
-  SPI.transfer(spiBuff,4);
-  digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
+    spiBuff[0] = 0x82;          //0x82 is the opcode for "SetRX"
+    spiBuff[1] = 0xFF;          //24-bit timeout, 0xFFFFFF means no timeout
+    spiBuff[2] = 0xFF;          // ^^
+    spiBuff[3] = 0xFF;          // ^^
+    SPI.transfer(spiBuff,4);
+    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+   
+    xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
+  }
   waitForRadioCommandCompletion(100);
 
   //Remember that we're in receive mode so we don't need to run this code again unnecessarily
@@ -326,11 +323,15 @@ Switching directly from Rx to Tx mode can be slow, so we first want to go into s
 void LoraSx1262::setModeStandby() {
   // Tell the chip to wait for it to receive a packet.
   // Based on our previous config, this should throw an interrupt when we get a packet
-  digitalWrite(RADIO_NSS,0); //Enable radio chip-select
-  spiBuff[0] = 0x80;          //0x80 is the opcode for "SetStandby"
-  spiBuff[1] = 0x01;          //0x00 = STDBY_RC, 0x01=STDBY_XOSC
-  SPI.transfer(spiBuff,2);
-  digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+    digitalWrite(RADIO_NSS,0); //Enable radio chip-select
+    spiBuff[0] = 0x80;          //0x80 is the opcode for "SetStandby"
+    spiBuff[1] = 0x01;          //0x00 = STDBY_RC, 0x01=STDBY_XOSC
+    SPI.transfer(spiBuff,2);
+    digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+   
+    xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
+  }
   waitForRadioCommandCompletion(100);
   inReceiveMode = false;  //No longer in receive mode
 }
@@ -349,6 +350,8 @@ int LoraSx1262::lora_receive_async(char* buff, int buffMaxLen) {
 
   //Radio pin DIO1 (interrupt) goes high when we have a packet ready.  If it's low, there's no packet yet
   if (digitalRead(RADIO_DIO1) == false) { return -1; } //Return -1, meanining no packet ready
+
+  if (xSemaphoreTake(spiMutex, portMAX_DELAY) != pdTRUE) return -1;
 
   //Tell the radio to clear the interrupt, and set the pin back inactive.
   while (digitalRead(RADIO_DIO1)) {
@@ -404,6 +407,8 @@ int LoraSx1262::lora_receive_async(char* buff, int buffMaxLen) {
   SPI.transfer(spiBuff,3);    //Send commands to get read started
   SPI.transfer(buff,payloadLen);  //Get the contents from the radio and store it into the user provided buffer
   digitalWrite(RADIO_NSS,1); //Disable radio chip-select
+
+  xSemaphoreGive(spiMutex); // Allow accel to use SPI bus
 
   return payloadLen;  //Return how many bytes we actually read
 }

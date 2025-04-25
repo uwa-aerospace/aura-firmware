@@ -71,6 +71,7 @@ TaskHandle_t FlightLogicTaskHandle;
 
 EventGroupHandle_t sensorEventGroup;
 EventGroupHandle_t loggingEventGroup;
+SemaphoreHandle_t spiMutex;
 
 void setup() {
   Serial.begin(460800);
@@ -93,14 +94,18 @@ void setup() {
   // // Barometer SETUP
   // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
-  // // SD card SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+  // SD card SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
   // Accelerometer SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(SPI_SCK, SPI_MISO, SPI_MOSI, ACCEL_CS, ACCEL_INT));
 
-  // // Radio SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY));
+  // Radio SETUP
+  spiMutex = xSemaphoreCreateMutex();
+  if (spiMutex != NULL)
+    setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY, RADIO_FREQ));
+  else
+    setupStatus = RADIO_ERROR;
 
   // Misc setups, no checks required because they will generally always succeed
   setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
@@ -110,7 +115,7 @@ void setup() {
   sensorEventGroup = xEventGroupCreate();
   loggingEventGroup = xEventGroupCreate();
   if (sensorEventGroup == NULL || loggingEventGroup == NULL) {
-    ESP_LOGE(SETUP_TAG, "Could not initialize sensor or logging event group");
+    ESP_LOGE(SETUP_TAG, "Could not initialize logging/sensor event groups");
     setupStatus = SDCARD_ERROR;
   }
 
@@ -130,9 +135,9 @@ void setup() {
   // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
   // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);
-  // xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
+  xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 
-  // xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
+  xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
   // xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
 }
 

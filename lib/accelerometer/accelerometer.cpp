@@ -72,6 +72,7 @@ SetupStatus setupAccelerometer(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t 
   digitalWrite(accelCsPin, HIGH);
 
   accelSpi->begin(sck, miso, mosi, cs);
+  accelSpi->setFrequency(10000000); // 10 MHz
 
   dev_ctx.write_reg = platform_write;
   dev_ctx.read_reg = platform_read;
@@ -176,8 +177,12 @@ uint64_t lastMeasurement;
 void AccelerometerTask(void* pvParameters) {
   while (1) {
     if (xSemaphoreTake(accelIrqSemaphore, portMAX_DELAY) == pdTRUE) {
-      lsm6dsox_acceleration_raw_get(&dev_ctx, accel_unprocessed);
-      lsm6dsox_angular_rate_raw_get(&dev_ctx, gyro_unprocessed);
+      // Wait until radio finishes using SPI bus
+      if (xSemaphoreTake(spiMutex, portMAX_DELAY) == pdTRUE) {
+        lsm6dsox_acceleration_raw_get(&dev_ctx, accel_unprocessed);
+        lsm6dsox_angular_rate_raw_get(&dev_ctx, gyro_unprocessed);
+        xSemaphoreGive(spiMutex); // Allow radio to use SPI bus
+      }
 
       accelRaw.x = lsm6dsox_from_fs16_to_mg(accel_unprocessed[0]) * 1e-3;
       accelRaw.y = lsm6dsox_from_fs16_to_mg(accel_unprocessed[1]) * 1e-3;

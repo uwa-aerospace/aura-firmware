@@ -1,10 +1,14 @@
 #include "radio.h"
 #include "LoraSx1262.h"
 
+#include "data.h"
+#include "vector_type.h"
+
 #define TAG "RADIO"
 
-#define RADIO_SLOW_TX_RATE 1000
-#define RADIO_FAST_TX_RATE 100
+#define RADIO_IDLE_TX_RATE 1000
+#define RADIO_ARMED_TX_RATE 500
+#define RADIO_FLIGHT_TX_RATE 100
 #define TRANSMIT_BIT (1 << 0)
 #define RECEIVE_BIT  (1 << 1)
 
@@ -16,7 +20,9 @@ volatile bool shouldTransmit = false;
 
 void transmitTimerCallback(TimerHandle_t xTimer) {
   shouldTransmit = true;
-  xEventGroupSetBits(radioEventGroup, TRANSMIT_BIT);
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  xEventGroupSetBitsFromISR(radioEventGroup, TRANSMIT_BIT, &xHigherPriorityTaskWoken);
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 void IRAM_ATTR radioInterrupt(void) {
@@ -25,8 +31,10 @@ void IRAM_ATTR radioInterrupt(void) {
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint8_t dio1, uint8_t busy) {
-  radio = new LoraSx1262(sck, miso, mosi, cs, -1, dio1);
+long freqHz = 0;
+
+SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint8_t dio1, uint8_t busy, long freqHz) {
+  radio = new LoraSx1262(sck, miso, mosi, cs, -1, dio1, busy);
 
   if (!radio->begin()) {
     ESP_LOGE(TAG, "Failed to initialize radio");
@@ -34,6 +42,7 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
   }
 
   radio->configSetPreset(PRESET_DEFAULT);
+  radio->configSetFrequency(freqHz);
   radio->setModeReceive();
   attachInterrupt(digitalPinToInterrupt(dio1), radioInterrupt, HIGH);
 
@@ -43,7 +52,7 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
     return RADIO_ERROR;
   }
 
-  radioTransmitTimer = xTimerCreate("RadioTransmitTimer", pdMS_TO_TICKS(RADIO_SLOW_TX_RATE), pdTRUE, (void*)0, transmitTimerCallback);
+  radioTransmitTimer = xTimerCreate("RadioTransmitTimer", pdMS_TO_TICKS(RADIO_FLIGHT_TX_RATE), pdTRUE, (void*)0, transmitTimerCallback);
   if (radioTransmitTimer == NULL) {
     ESP_LOGE(TAG, "Could not create radio transmit timer");
     return RADIO_ERROR;
@@ -57,6 +66,60 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
 
 char receiveBuff[255];
 
+char transmitBuf[255];
+int txBufStrPos;
+const uint8_t base = 10;
+const char cs = ',';
+
+void writeIntDataRadioStr(int dataValue) {
+  itoa(dataValue, transmitBuf + txBufStrPos, base);
+  while(transmitBuf[txBufStrPos]!= '\0'){txBufStrPos++;}
+  transmitBuf[txBufStrPos] = cs;
+  txBufStrPos++;
+}
+
+void writeFloatDataRadioStr(float dataValue, byte decimals){
+  long fracInt;
+  float partial;
+
+  //sign portion
+  if (dataValue < 0) {
+    transmitBuf[txBufStrPos] = '-'; 
+    txBufStrPos++;
+    dataValue *= -1;
+  }
+  
+  //integer portion
+  itoa((int)dataValue, transmitBuf + txBufStrPos, base);
+  while(transmitBuf[txBufStrPos]!= '\0'){ txBufStrPos++; }
+  transmitBuf[txBufStrPos]='.'; txBufStrPos++;
+  
+  //fractional portion
+  partial = dataValue - (int)(dataValue);
+  fracInt = (long)(partial*powf(10,decimals));
+  if (fracInt == 0) {
+    transmitBuf[txBufStrPos] = '0'; 
+    txBufStrPos++; 
+    transmitBuf[txBufStrPos] = cs; 
+    txBufStrPos++;
+  }
+  else {
+    decimals--;
+    while(fracInt < powf(10, decimals)){ 
+      transmitBuf[txBufStrPos]='0';
+      txBufStrPos++;
+      decimals--; 
+    }
+    ltoa(fracInt, transmitBuf + txBufStrPos, base);
+    while(transmitBuf[txBufStrPos]!= '\0'){ txBufStrPos++; }
+    transmitBuf[txBufStrPos]=','; txBufStrPos++;
+  }
+}
+
+// RADIO TO SEND
+// 500 MS (2 HZ) ON THE GROUND: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon, accelXYZ, gyroXYZ
+// 100 MS (10HZ) IN THE AIR: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon
+
 void RadioTask(void *pvParameters) {
   while (1) {
     EventBits_t bits = xEventGroupWaitBits(
@@ -68,10 +131,37 @@ void RadioTask(void *pvParameters) {
     );
 
     if (bits & TRANSMIT_BIT) {
-      ESP_LOGI(TAG, "Transmitting...");
-      radio->transmit((char*)"Hello from aura", strlen((char*)"Hello from aura"));
-      ESP_LOGI(TAG, "Done!\n\n");
+      // Write all data (except lat/lon) as ints to save payload space
+      writeIntDataRadioStr(flightState);
+      
+      writeIntDataRadioStr((int) baroAltitudeAGL);
+      writeIntDataRadioStr((int) gnssAltitudeAGL);
+      
+      writeIntDataRadioStr((int) accelVertVel);
+      writeIntDataRadioStr((int) baroVertVel);
+      writeIntDataRadioStr((int) gnssVertVel);
+      writeIntDataRadioStr((int) tiltAngle);
+      
+      // 5 dp lat/lon is sufficient precision
+      writeFloatDataRadioStr(gnssLatitude, 5);
+      writeFloatDataRadioStr(gnssLongitude, 5);
+
+      // Send accel and gyro XYZ values when not launched for debugging/validation
+      if (flightState == FLIGHT_ARMED) {
+        writeFloatDataRadioStr(accelCorrected.x, 2);
+        writeFloatDataRadioStr(accelCorrected.y, 2);
+        writeFloatDataRadioStr(accelCorrected.z, 2);
+        writeFloatDataRadioStr(gyroCorrected.x, 2);
+        writeFloatDataRadioStr(gyroCorrected.y, 2);
+        writeFloatDataRadioStr(gyroCorrected.z, 2);
+      }
+      txBufStrPos--;
+      transmitBuf[txBufStrPos] = '\0';
+      
+      radio->transmit(transmitBuf, strlen(transmitBuf));
       radio->setModeReceive(); // Allows receiving messages between transmits
+      ESP_LOGI(TAG,"TRANSMITED");
+      txBufStrPos = 0;
     }
 
     if (bits & RECEIVE_BIT) {

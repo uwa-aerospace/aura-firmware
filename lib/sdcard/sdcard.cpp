@@ -134,20 +134,6 @@ void writeIntData(int dataValue) {
   strPosn++;
 }
 
-void writeULongData(unsigned long dataValue){
-  ultoa(dataValue, dataString + strPosn, base);
-  while(dataString[strPosn]!= '\0'){strPosn++;}
-  dataString[strPosn] = cs;
-  strPosn++;
-}
-
-void writeLongData(long dataValue){
-  ltoa(dataValue, dataString + strPosn, base);
-  while(dataString[strPosn]!= '\0'){strPosn++;}
-  dataString[strPosn] = cs;
-  strPosn++;
-}
-
 void writeFloatData(float dataValue, byte decimals){
   long fracInt;
   float partial;

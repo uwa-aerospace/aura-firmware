@@ -21,6 +21,7 @@ extern FlightState flightState;
 
 extern EventGroupHandle_t sensorEventGroup;
 extern EventGroupHandle_t loggingEventGroup;
+extern SemaphoreHandle_t spiMutex;
 
 // IMU DATA
 extern vec3_t accelRaw; // g, unfiltered

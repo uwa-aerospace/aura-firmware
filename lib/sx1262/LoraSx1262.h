@@ -72,14 +72,16 @@ class LoraSx1262 {
     int RADIO_NSS = 10;
     int RADIO_RESET = 4;
     int RADIO_DIO1 = 21;
+    int RADIO_BUSY = -1;
 
-    LoraSx1262(int clkPin, int misoPin, int mosiPin, int csPin, int resetPin, int dio1Pin) {
+    LoraSx1262(int clkPin, int misoPin, int mosiPin, int csPin, int resetPin, int dio1Pin, int busyPin) {
       RADIO_CLK = clkPin;
       RADIO_MISO = misoPin;
       RADIO_MOSI = mosiPin;
       RADIO_NSS = csPin;
       RADIO_RESET = resetPin;
       RADIO_DIO1 = dio1Pin;
+      RADIO_BUSY = busyPin;
     }
 
     uint32_t frequencyToPLL(long freqInHz);
