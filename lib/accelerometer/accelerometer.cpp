@@ -239,8 +239,9 @@ void AccelerometerTask(void* pvParameters) {
       accelCorrected.z -= 1; // Subtract gravity (1G)
       float accelZ_mSec = accelCorrected.z * GRAVITY_ACCEL;
 
-      // Only integrate vertical accelerations >2.5G if the rocket is not launched
-      if (flightState == FLIGHT_ARMED && accelCorrected.z > 2.5)
+      float magAccelNoGravity = accelFiltered.mag() - 1;
+      // Only integrate accelerations >2.5G if the rocket is not launched
+      if (flightState == FLIGHT_ARMED && magAccelNoGravity > 2.5)
         accelVertVel += accelZ_mSec * dt;
       else if (flightState > FLIGHT_ARMED)
         accelVertVel += accelZ_mSec * dt;

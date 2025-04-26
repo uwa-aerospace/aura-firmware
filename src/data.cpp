@@ -31,7 +31,7 @@ float gnssVertVel = 0;
 float maxGnssVertVel = 0;
 float gnssPadAltitude = 0;
 float gnssPDOP = 0;
-bool gnssValidReadings = true;
+bool gnssValidReadings = false;
 bool gnssHasFix = false;
 
 uint16_t accelLaunchCtr = 0;
