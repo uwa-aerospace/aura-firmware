@@ -6,7 +6,6 @@
 // #include "esp_wifi.h"
 // #include "esp_log.h"
 #include "esp_task_wdt.h"
-#include "soc/rtc_wdt.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -90,9 +89,6 @@ void setup() {
 
   // Disable WDT to prevent the possibility of in flight restarts
   esp_task_wdt_deinit();
-  rtc_wdt_protect_off();
-  rtc_wdt_disable();
-  rtc_wdt_protect_on();
 
   SetupStatus setupStatus = SETUP_OK;
 
@@ -104,12 +100,12 @@ void setup() {
   digitalWrite(ACCEL_CS, HIGH);
   digitalWrite(MEM_CS, HIGH);
 
-  // // GNSS SETUP
-  // Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  // GNSS SETUP
+  Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
-  // // Barometer SETUP
-  // setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  // Barometer SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
 
   // SD card SETUP
   setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
@@ -150,7 +146,7 @@ void setup() {
   }
 
   delay(1000);
-  // shortBeepXTimes(1);
+  shortBeepXTimes(1);
 
   // Peripheral/component tasks
   xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);

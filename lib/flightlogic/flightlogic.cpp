@@ -194,7 +194,7 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_MAIN: {
         /* Landing is detected when 1/4 conditions are true:
-         - Barometric velocity is between -0.5 and 0.5 for 50 readings in a row
+         - Barometric velocity is between -0.5 and 0.5 for 25 readings in a row
          - GNSS velocity is between -0.5 and 0.5 for 25 readings in a row
          - Magnitude of accel is between 0.9-1.1G for 50 readings in a row
          - Magnitude of gyro rates is between 0 and 1.5 deg/sec for 50 readings in a row
@@ -221,7 +221,7 @@ void FlightLogicTask(void* pvParameters) {
         }
 
         if (bits & GNSS_SENSOR_EVENT) {
-          if (gnssVertVel < -0.5 && gnssValidReadings > 0.5 && gnssValidReadings)
+          if (gnssVertVel > -0.5 && gnssValidReadings < 0.5 && gnssValidReadings)
             gnssLandingCtr++;
           else
             gnssLandingCtr = 0;
