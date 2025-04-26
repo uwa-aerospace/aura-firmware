@@ -188,6 +188,8 @@ void LoggingTask(void* pvParameters) {
       portMAX_DELAY
     );
 
+    if (flightState == FLIGHT_IDLE) continue; // Do not log during idle to save resources
+
     uint64_t now = micros();
     float dt = (now - lastLogTime) * 1e-3;
     lastLogTime = now;

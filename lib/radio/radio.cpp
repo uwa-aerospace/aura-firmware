@@ -1,14 +1,13 @@
 #include "radio.h"
 #include "SX126x-Arduino.h"
+#include "pyro.h"
+#include "buzzer.h"
 
 #include "data.h"
 #include "vector_type.h"
 
 #define TAG "RADIO"
 
-#define RADIO_IDLE_TX_RATE 1000
-#define RADIO_ARMED_TX_RATE 500
-#define RADIO_FLIGHT_TX_RATE 100
 #define TRANSMIT_BIT (1 << 0)
 #define RECEIVE_BIT  (1 << 1)
 
@@ -22,6 +21,10 @@
 #define LORA_IQ_INVERSION_ON false
 #define RX_TIMEOUT_VALUE 3000
 #define TX_TIMEOUT_VALUE 3000
+
+#define ARM_CMD "ARM8MkEewq7"
+#define DISARM_CMD "DISARM8MkEewq7"
+#define FIRE_PYRO_CMD "FIRE8MkEewq7"
 
 hw_config hwConfig;
 EventGroupHandle_t radioEventGroup;
@@ -62,7 +65,7 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
   txDoneSemaphore = xSemaphoreCreateBinary();
   radioTransmitTimer = xTimerCreate(
     "RadioTxTimer",
-    pdMS_TO_TICKS(RADIO_FLIGHT_TX_RATE),
+    pdMS_TO_TICKS(RADIO_IDLE_TX_RATE),
     pdTRUE, NULL,
     transmitTimerCallback
   );
@@ -119,12 +122,12 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
 
 static char receiveBuff[255];
 static int16_t lastRssi;
-static int8_t  lastSnr;
+static int8_t lastSnr;
 void OnRxDone(uint8_t* payload, uint16_t size, int16_t rssi, int8_t snr) {
   memcpy(receiveBuff, payload, size);
   receiveBuff[size] = '\0';
   lastRssi = rssi;
-  lastSnr  = snr;
+  lastSnr = snr;
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
   xEventGroupSetBitsFromISR(radioEventGroup, RECEIVE_BIT, &xHigherPriorityTaskWoken);
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -217,6 +220,26 @@ void buildDataString() {
   transmitBuf[txBufStrPos] = '\0';
 }
 
+void processRadioCommands(char* command, int data) {
+  if (flightState > FLIGHT_ARMED) return; // No more commands accepted after launch detected
+
+  if (strcmp(command, ARM_CMD) == 0) {
+    shortBeepXTimes(3);
+    xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
+    flightState = FLIGHT_ARMED;
+  }
+  else if (strcmp(command, DISARM_CMD) == 0) {
+    shortBeepXTimes(3);
+    xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_IDLE_TX_RATE), 0);
+    flightState = FLIGHT_IDLE;
+  }
+  else if (strcmp(command, FIRE_PYRO_CMD) == 0 && data >= 0 && data <= 3) {
+    longBeep();
+    delay(1000);
+    firePyro(data);
+  }
+}
+
 void RadioTask(void *pvParameters) {
   while (1) {
     EventBits_t bits = xEventGroupWaitBits(
@@ -233,15 +256,16 @@ void RadioTask(void *pvParameters) {
       Radio.Send((uint8_t*) transmitBuf, strlen(transmitBuf));
 
       if (xSemaphoreTake(txDoneSemaphore, portMAX_DELAY) == pdTRUE) {
-        ESP_LOGI(TAG, "TX");
         Radio.RxBoosted(0);
         txBufStrPos = 0;
       }
     }
 
     if (bits & RECEIVE_BIT) {
-      ESP_LOGI(TAG, "RX: %s (RSSI=%d, SNR=%d)",
-               receiveBuff, lastRssi, lastSnr);
+      char command[64] = {0};
+      int number = -1;
+      sscanf(receiveBuff, "%64[^,],%d", command, &number);
+      processRadioCommands(command, number);
       
       Radio.RxBoosted(0);
     }

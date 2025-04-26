@@ -6,6 +6,7 @@
 void shortBeep();
 void longBeep();
 void shortBeepXTimes(uint8_t times);
+void longBeepXTimes(uint8_t times);
 void setupBuzzer(uint8_t buzzerPin);
 
 #endif

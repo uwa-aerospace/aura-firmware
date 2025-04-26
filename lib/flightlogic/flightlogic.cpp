@@ -1,6 +1,10 @@
 #include "flightlogic.h"
-#include "data.h"
 #include "pyro.h"
+#include "buzzer.h"
+#include "radio.h"
+#include "sdcard.h"
+
+#include "data.h"
 #include "vector_type.h"
 
 int mainDeployAltitude = 0;
@@ -76,8 +80,17 @@ void FlightLogicTask(void* pvParameters) {
             gnssLaunchCtr = 0;
         }
 
+        // Sound buzzer to indicate that the system is still alive and actively calibrating
+        if (accelCalibrationCycle && baroCalibrationCycle && gnssCalibrationCycle) {
+          shortBeep();
+          accelCalibrationCycle = false;
+          baroCalibrationCycle = false;
+          gnssCalibrationCycle = false;
+        }
+
         if (accelLaunchCtr > 10 || gnssLaunchCtr > 5) {
-          // TODO: Beep nonblocking to indicate state change
+          longBeepXTimes(3);
+          xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_FLIGHT_TX_RATE), 0);
           flightState = FLIGHT_BOOST;
         }
 
@@ -215,6 +228,8 @@ void FlightLogicTask(void* pvParameters) {
         }
 
         if (baroLandingCtr > 25 || gnssLandingCtr > 50 || accelLandingCtr > 50 || gyroLandingCtr > 50) {
+          flushLogFile();
+          xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
           flightState = FLIGHT_IDLE;
         }
         

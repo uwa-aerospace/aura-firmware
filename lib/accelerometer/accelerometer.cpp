@@ -98,7 +98,6 @@ SetupStatus setupAccelerometer(uint8_t cs, uint8_t interrupt) {
   lsm6dsox_pin_int2_route_get(&dev_ctx, NULL, &int2_route);
   int2_route.drdy_g = PROPERTY_ENABLE;
   lsm6dsox_pin_int2_route_set(&dev_ctx, NULL, int2_route);
-  // lsm6dsox_int_notification_set(&dev_ctx, LSM6DSOX_ALL_INT_LATCHED);
 
   accelIrqSemaphore = xSemaphoreCreateBinary();
   if (accelIrqSemaphore == NULL) {
@@ -208,6 +207,8 @@ void AccelerometerTask(void* pvParameters) {
         }
         // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
         else if (flightState == FLIGHT_ARMED && accelFiltered.mag() < 1.5) {
+          accelCalibrationCycle = true;
+          
           setGravityRotQuatn();
           accelCalibrationSums = vec3_t(0,0,0);
           accelVertVel = 0;

@@ -111,6 +111,7 @@ void GnssTask(void *pvParameters) {
             }
             // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
             else if (flightState == FLIGHT_ARMED && accelRaw.mag() < 1.5) {
+              gnssCalibrationCycle = true;
               gnssPadAltitude = gnssPadAltitudeSum / gnssSamplesRequired;
               shouldCalGnss = false;
               gnssPadAltitudeSum = 0;

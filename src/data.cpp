@@ -1,7 +1,10 @@
 #include "data.h"
 
-// Start armed for now
-FlightState flightState = FLIGHT_ARMED;
+FlightState flightState = FLIGHT_IDLE;
+
+bool accelCalibrationCycle = false;
+bool baroCalibrationCycle = false;
+bool gnssCalibrationCycle = false;
 
 vec3_t accelRaw = vec3_t(0,0,0);
 vec3_t gyroRaw = vec3_t(0,0,0);

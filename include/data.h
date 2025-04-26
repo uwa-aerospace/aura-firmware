@@ -23,6 +23,10 @@ extern EventGroupHandle_t sensorEventGroup;
 extern EventGroupHandle_t loggingEventGroup;
 extern SemaphoreHandle_t spiMutex;
 
+extern bool accelCalibrationCycle;
+extern bool baroCalibrationCycle;
+extern bool gnssCalibrationCycle;
+
 // IMU DATA
 extern vec3_t accelRaw; // g, unfiltered
 extern vec3_t gyroRaw;  // dps, unfiltered

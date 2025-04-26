@@ -5,6 +5,8 @@
 // #include "esp_bt.h"
 // #include "esp_wifi.h"
 // #include "esp_log.h"
+#include "esp_task_wdt.h"
+#include "soc/rtc_wdt.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -86,6 +88,12 @@ void setup() {
   // esp_bt_controller_deinit();
   // esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
 
+  // Disable WDT to prevent the possibility of in flight restarts
+  esp_task_wdt_deinit();
+  rtc_wdt_protect_off();
+  rtc_wdt_disable();
+  rtc_wdt_protect_on();
+
   SetupStatus setupStatus = SETUP_OK;
 
   // Reset all SPI CS pins to prevent multi-access
@@ -109,6 +117,9 @@ void setup() {
   // Setup shared SPI bus to avoid individual SPI setup clashes
   SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
   SPI.setFrequency(10000000);
+  
+  // Accelerometer SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(ACCEL_CS, ACCEL_INT));
 
   // Radio SETUP
   spiMutex = xSemaphoreCreateMutex();
@@ -116,9 +127,6 @@ void setup() {
     setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY, RADIO_FREQ));
   else
     setupStatus = RADIO_ERROR;
-
-  // Accelerometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(ACCEL_CS, ACCEL_INT));
 
   // Misc setups, no checks required because they will generally always succeed
   setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
@@ -145,13 +153,13 @@ void setup() {
   // shortBeepXTimes(1);
 
   // Peripheral/component tasks
-  // xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
-  // xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
+  xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
+  xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);
   xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 
   xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
-  // xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
+  xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
 }
 
 void loop() {
