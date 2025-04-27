@@ -29,8 +29,8 @@
 #define SETUP_TAG "MAINSETUP"
 
 // IMPORTANT SETTINGS
-#define MAIN_DEPLOY_ALT 250 // in M
-#define RADIO_FREQ 915000000 // in Hz
+#define MAIN_DEPLOY_ALT 60 // in M
+#define RADIO_FREQ 907000000 // in Hz
 
 // Pin and MCU function declarations
 #define GNSS_RX_PIN 21

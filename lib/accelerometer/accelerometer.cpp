@@ -237,6 +237,7 @@ void AccelerometerTask(void* pvParameters) {
       accelCorrected = gravityRotQuatn.rotate(accelFiltered, false);
       accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 1G as possible
       accelCorrected.z -= 1; // Subtract gravity (1G)
+      accelCorrected.z = reduce2DP(accelCorrected.z);
       float accelZ_mSec = accelCorrected.z * GRAVITY_ACCEL;
 
       float magAccelNoGravity = accelFiltered.mag() - 1;
