@@ -118,6 +118,7 @@ void BarometerTask(void *pvParameters) {
           padAltitudeSum = 0;
           baroSamplesCollected = 0;
         }
+        else shouldCalBaro = false;
       }
 
       baroAltitudeAGL = baroAltitudeMSL - baroPadAltitude;

@@ -224,6 +224,7 @@ void AccelerometerTask(void* pvParameters) {
 
           lastMeasurement = micros();
         }
+        else shouldCal = false;
       }
 
       // Do not process if accel has not been calibrated

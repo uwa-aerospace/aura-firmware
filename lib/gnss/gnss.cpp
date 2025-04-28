@@ -117,6 +117,7 @@ void GnssTask(void *pvParameters) {
               gnssPadAltitudeSum = 0;
               gnssSamplesCollected = 0;
             }
+            else shouldCalGnss = false;
           }
 
           gnssAltitudeAGL = gnssAltitudeMSL - gnssPadAltitude;
