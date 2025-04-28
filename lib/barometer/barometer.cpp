@@ -111,7 +111,7 @@ void BarometerTask(void *pvParameters) {
           baroSamplesCollected++;
         }
         // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
-        else if (flightState == FLIGHT_ARMED && accelRaw.mag() < 1.5) {
+        else if (flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {
           baroCalibrationCycle = true;
           baroPadAltitude = padAltitudeSum / baroSamplesRequired;
           shouldCalBaro = false;
@@ -126,7 +126,7 @@ void BarometerTask(void *pvParameters) {
       xEventGroupSetBits(loggingEventGroup, BARO_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
-      if (baroCalCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelRaw.mag() < 1.5) {
+      if (baroCalCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {
         shouldCalBaro = true;
         baroCalCount = 0;
       }

@@ -110,7 +110,7 @@ void GnssTask(void *pvParameters) {
               gnssSamplesCollected++;
             }
             // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
-            else if (flightState == FLIGHT_ARMED && accelRaw.mag() < 1.5) {
+            else if (flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {
               gnssCalibrationCycle = true;
               gnssPadAltitude = gnssPadAltitudeSum / gnssSamplesRequired;
               shouldCalGnss = false;
@@ -125,7 +125,7 @@ void GnssTask(void *pvParameters) {
           xEventGroupSetBits(loggingEventGroup, GNSS_SENSOR_EVENT);
 
           // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
-          if (gnssCalCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelRaw.mag() < 1.5) {
+          if (gnssCalCount >= GNSS_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {
             shouldCalGnss = true;
             gnssCalCount = 0;
           }

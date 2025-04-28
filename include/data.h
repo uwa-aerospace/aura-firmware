@@ -26,6 +26,7 @@ extern SemaphoreHandle_t spiMutex;
 extern bool accelCalibrationCycle;
 extern bool baroCalibrationCycle;
 extern bool gnssCalibrationCycle;
+#define CALIBRATION_APPLY_THRESHOLD 1.5 // Maximum acceleration acceptable to apply sensor calibrations
 
 // IMU DATA
 extern vec3_t accelRaw; // g, unfiltered

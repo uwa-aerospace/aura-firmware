@@ -206,7 +206,7 @@ void AccelerometerTask(void* pvParameters) {
           }
         }
         // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
-        else if (flightState == FLIGHT_ARMED && accelFiltered.mag() < 1.5) {
+        else if (flightState == FLIGHT_ARMED && accelFiltered.mag() < CALIBRATION_APPLY_THRESHOLD) {
           accelCalibrationCycle = true;
           
           setGravityRotQuatn();
@@ -279,7 +279,7 @@ void AccelerometerTask(void* pvParameters) {
       xEventGroupSetBits(loggingEventGroup, IMU_SENSOR_EVENT);
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
-      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelFiltered.mag() < 1.5) {
+      if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelFiltered.mag() < CALIBRATION_APPLY_THRESHOLD) {
         shouldCal = true;
         calCount = 0;
       }
