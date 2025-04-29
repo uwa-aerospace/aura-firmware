@@ -176,6 +176,7 @@ float logTime = 0;
 uint64_t lastLogTime = 0;
 uint64_t numLogs = 0;
 bool firstLog = true;
+bool resetLogTimeAtLaunch = false;
 
 void LoggingTask(void* pvParameters) {
   openLogFile(SD_MMC, filePath);
@@ -196,6 +197,11 @@ void LoggingTask(void* pvParameters) {
 
     if (dt < 250 && firstLog) firstLog = false;
     if (!firstLog) logTime += dt;
+
+    if (flightState > FLIGHT_ARMED && !resetLogTimeAtLaunch) {
+      logTime = 0;
+      resetLogTimeAtLaunch = true;
+    }
 
     writeFloatData(logTime, 2);
     writeIntData(flightState);
