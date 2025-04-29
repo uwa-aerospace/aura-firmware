@@ -98,7 +98,7 @@ void FlightLogicTask(void* pvParameters) {
       case FLIGHT_BOOST: {
         /* Burnout is detected when 1/2 conditions are true:
          - Accel velocity has dropped 3m/s below the max accel velocity for 10 readings in a row
-         - GNSS vertical velocity has dropped 3m/s below the max GNSS velocity for 5 readings in a row
+         - GNSS vertical velocity has dropped 3m/s below the max GNSS velocity for 25 readings in a row
         */
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
@@ -119,7 +119,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssBurnoutCtr = 0;
         }
 
-        if (accelBurnoutCtr > 10 || gnssBurnoutCtr > 5) {
+        if (accelBurnoutCtr > 10 || gnssBurnoutCtr > 25) {
           flightState = FLIGHT_BURNOUT;
         }
 

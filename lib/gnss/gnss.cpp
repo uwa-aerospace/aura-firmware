@@ -99,10 +99,11 @@ void GnssTask(void *pvParameters) {
           gnssAltitudeMSL = pvt.hMSL / 1000.0;
           gnssVertVel = pvt.velD / 1000.0;
 
-          maxGnssVertVel = max(maxGnssVertVel, gnssVertVel);
-
           gnssPDOP = pvt.pDOP / 100.0;
           gnssValidReadings = (gnssPDOP < 3);
+
+          // Prevents an absurdly high velocity from causing early burnout detection
+          if (gnssValidReadings) maxGnssVertVel = max(maxGnssVertVel, gnssVertVel);
 
           if (flightState == FLIGHT_ARMED && shouldCalGnss) {
             if (gnssSamplesCollected < gnssSamplesRequired) {
