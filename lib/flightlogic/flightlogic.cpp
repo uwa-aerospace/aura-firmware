@@ -128,8 +128,8 @@ void FlightLogicTask(void* pvParameters) {
         /* Apogee is detected when 2/4 conditions are true:
          - Accel velocity is < 0 for 50 readings in a row
          - Gyro tilt angle is > 90 degrees for 50 readings in a row
-         - Barometric velocity < 0 for 30 readings in a row AND velocity is < 250m/s (Mach lockout)
-         - GNSS velocity < 0 for 15 readings in a row
+         - Barometric velocity < 0 for 50 readings in a row AND velocity is < 250m/s (Mach lockout)
+         - GNSS velocity < 0 for 25 readings in a row
         */
 
         if (bits & IMU_SENSOR_EVENT) {
@@ -158,7 +158,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssApogeeCtr = 0;
         }
 
-        int apogeeConditionsCtr = (accelApogeeCtr > 50) + (gyroApogeeCtr > 50) + (baroApogeeCtr > 30) + (gnssApogeeCtr > 15);
+        int apogeeConditionsCtr = (accelApogeeCtr > 50) + (gyroApogeeCtr > 50) + (baroApogeeCtr > 50) + (gnssApogeeCtr > 25);
         if (apogeeConditionsCtr >= 2) {
           firePyro(0);
           esp_timer_start_once(apogeeBackupTimer, BACKUP_DELAY);
@@ -194,7 +194,7 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_MAIN: {
         /* Landing is detected when 1/4 conditions are true:
-         - Barometric velocity is between -0.5 and 0.5 for 25 readings in a row
+         - Barometric velocity is between -0.5 and 0.5 for 50 readings in a row
          - GNSS velocity is between -0.5 and 0.5 for 25 readings in a row
          - Magnitude of accel is between 0.9-1.1G for 50 readings in a row
          - Magnitude of gyro rates is between 0 and 1.5 deg/sec for 50 readings in a row
@@ -227,7 +227,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssLandingCtr = 0;
         }
 
-        if (baroLandingCtr > 25 || gnssLandingCtr > 50 || accelLandingCtr > 50 || gyroLandingCtr > 50) {
+        if (baroLandingCtr > 50 || gnssLandingCtr > 50 || accelLandingCtr > 50 || gyroLandingCtr > 50) {
           flushLogFile();
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
           flightState = FLIGHT_IDLE;

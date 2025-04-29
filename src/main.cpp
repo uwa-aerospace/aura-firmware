@@ -29,7 +29,7 @@
 #define SETUP_TAG "MAINSETUP"
 
 // IMPORTANT SETTINGS
-#define MAIN_DEPLOY_ALT 60 // in M
+#define MAIN_DEPLOY_ALT 30 // in M
 #define RADIO_FREQ 907000000 // in Hz
 
 // Pin and MCU function declarations

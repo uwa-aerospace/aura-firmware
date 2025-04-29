@@ -199,7 +199,7 @@ void AccelerometerTask(void* pvParameters) {
       if (flightState == FLIGHT_ARMED && shouldCal) {
         if (samplesCollected < samplesRequired) {
           // If the IMU is moving, do not add samples to calibration average
-          if (accelFiltered.mag() > 0.9 && accelFiltered.mag() < 1.1 && gyroFiltered.mag() < 1.5) {
+          if (accelFiltered.mag() > 0.9 && accelFiltered.mag() < 1.1 && gyroFiltered.mag() < 1.0) {
             accelCalibrationSums += accelFiltered;
             gyroCalibrationSums += gyroFiltered;
             samplesCollected++;
@@ -224,7 +224,8 @@ void AccelerometerTask(void* pvParameters) {
 
           lastMeasurement = micros();
         }
-        else shouldCal = false;
+        // Prevents deadlock where accel fails on first calibration and cannot re-calibrate unless powercycled
+        else if (initialCalibration) shouldCal = false;
       }
 
       // Do not process if accel has not been calibrated
