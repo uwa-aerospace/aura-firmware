@@ -128,7 +128,7 @@ void FlightLogicTask(void* pvParameters) {
         /* Apogee is detected when 2/4 conditions are true:
          - Accel velocity is < 0 for 50 readings in a row
          - Gyro tilt angle is > 90 degrees for 50 readings in a row
-         - Barometric velocity < 0 for 50 readings in a row AND velocity is < 250m/s (Mach lockout)
+         - Barometric velocity < 0 for 50 readings in a row AND velocity is < 150m/s (Mach lockout)
          - GNSS velocity < 0 for 25 readings in a row
         */
 
@@ -145,7 +145,7 @@ void FlightLogicTask(void* pvParameters) {
         }
 
         if (bits & BARO_SENSOR_EVENT) {
-          if (baroVertVel < 0 && accelVertVel < 250)
+          if (baroVertVel < 0 && accelVertVel < 150)
             baroApogeeCtr++;
           else
             baroApogeeCtr = 0;
