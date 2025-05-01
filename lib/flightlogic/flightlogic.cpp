@@ -60,13 +60,13 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_ARMED: {
         /* Launch is detected when 1/2 conditions are true:
-         - Accel-based vertical velocity is > 5m/s for 10 readings in a row (20ms delay)
-         - GNSS vertical velocity > 5m/s for 5 readings in a row (200ms delay)
+         - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G for 60 readings in a row (150ms delay)
+         - GNSS vertical velocity > 5m/s for 10 readings in a row (200ms delay)
         */
 
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (accelVertVel > 5)
+          if (accelVertVel > 5 && accelRaw.mag() > 3)
             accelLaunchCtr++;
           else // Reset counter if condition is no longer true (counters transients)
             accelLaunchCtr = 0;
@@ -88,7 +88,7 @@ void FlightLogicTask(void* pvParameters) {
           gnssCalibrationCycle = false;
         }
 
-        if (accelLaunchCtr > 10 || gnssLaunchCtr > 5) {
+        if (accelLaunchCtr > 60 || gnssLaunchCtr > 10) {
           longBeepXTimes(3);
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_FLIGHT_TX_RATE), 0);
           flightState = FLIGHT_BOOST;

@@ -242,14 +242,10 @@ void AccelerometerTask(void* pvParameters) {
       accelCorrected.z = reduce2DP(accelCorrected.z);
       float accelZ_mSec = accelCorrected.z * GRAVITY_ACCEL;
 
-      float magAccelNoGravity = accelFiltered.mag() - 1;
-      // Only integrate accelerations >2.5G if the rocket is not launched
-      if (flightState == FLIGHT_ARMED && magAccelNoGravity > 2.5)
-        accelVertVel += accelZ_mSec * dt;
-      else if (flightState > FLIGHT_ARMED)
-        accelVertVel += accelZ_mSec * dt;
+      accelVertVel += accelZ_mSec * dt;
 
-      maxAccelVertVel = max(maxAccelVertVel, accelVertVel);
+      if (flightState > FLIGHT_ARMED)
+        maxAccelVertVel = max(maxAccelVertVel, accelVertVel);
 
       // Gyro integration to orientation quaternion
       gyroCorrected = gyroFiltered - gyroBiases;
