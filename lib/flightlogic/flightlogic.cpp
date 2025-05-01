@@ -168,7 +168,7 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_APOGEE: {
         /* Main deployment is detected when 1/2 conditions are true:
-         - Barometric AGL altitude is below threshold for 25 readings in a row
+         - Barometric AGL altitude is below threshold for 50 readings in a row
          - GNSS AGL altitude is below threshold for 15 readings in a row
         */
         if (bits & BARO_SENSOR_EVENT) {
@@ -185,7 +185,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssMainCtr = 0;
         }
 
-        if (baroMainCtr > 25 || gnssMainCtr > 15) {
+        if (baroMainCtr > 50 || gnssMainCtr > 15) {
           firePyro(2);
           esp_timer_start_once(mainBackupTimer, BACKUP_DELAY);
           flightState = FLIGHT_MAIN;
