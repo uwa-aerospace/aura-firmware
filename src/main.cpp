@@ -148,7 +148,6 @@ void setup() {
   delay(1000);
   shortBeepXTimes(1);
 
-  // Peripheral/component tasks
   xTaskCreate(GnssTask, "GnssTask", 4096, NULL, 2, &GnssTaskHandle);
   xTaskCreate(BarometerTask, "BarometerTask", 4096, NULL, 2, &BarometerTaskHandle);
   xTaskCreatePinnedToCore(AccelerometerTask, "AccelerometerTask", 8192, NULL, 2, &AccelerometerTaskHandle, 1);

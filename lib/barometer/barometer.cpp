@@ -63,7 +63,7 @@ uint32_t baroCalCount = 0;
 
 void setupKfBaro() {
   float baroMeasErr = 0.008f;
-  float processVar = 1.0f;
+  float processVar = 0.1f;
   float dt = 0.02f;
   kfBaro.init(kfSetupAlt, 0.0f, baroMeasErr, baroMeasErr, processVar, baroMeasErr, dt);
   kfSetup = true;
