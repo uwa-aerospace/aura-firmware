@@ -57,7 +57,7 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
   freq = freqHz;
 
   if (lora_hardware_init(hwConfig) != 0) {
-    ESP_LOGE(TAG, "Board init failed");
+    ESP_LOGE(TAG, "Radio init failed");
     return RADIO_ERROR;
   }
 

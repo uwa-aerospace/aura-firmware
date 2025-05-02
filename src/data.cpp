@@ -35,10 +35,8 @@ bool gnssValidReadings = false;
 bool gnssHasFix = false;
 
 uint16_t accelLaunchCtr = 0;
-uint16_t gnssLaunchCtr = 0;
 
 uint16_t accelBurnoutCtr = 0;
-uint16_t gnssBurnoutCtr = 0;
 
 uint16_t baroApogeeCtr = 0;
 uint16_t gnssApogeeCtr = 0;

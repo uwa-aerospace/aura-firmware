@@ -59,9 +59,8 @@ void FlightLogicTask(void* pvParameters) {
         // do nothing, wait for arm
       } break;
       case FLIGHT_ARMED: {
-        /* Launch is detected when 1/2 conditions are true:
+        /* Launch is detected when:
          - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G for 60 readings in a row (150ms delay)
-         - GNSS vertical velocity > 5m/s for 10 readings in a row (200ms delay)
         */
 
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
@@ -72,14 +71,6 @@ void FlightLogicTask(void* pvParameters) {
             accelLaunchCtr = 0;
         }
 
-        // ONLY UPDATE IF NEW GNSS DATA IS AVAILABLE
-        if (bits & GNSS_SENSOR_EVENT) {
-          if (gnssVertVel > 5 && gnssValidReadings) // Make sure GNSS is reading correct values based on PDOP
-            gnssLaunchCtr++;
-          else
-            gnssLaunchCtr = 0;
-        }
-
         // Sound buzzer to indicate that the system is still alive and actively calibrating
         if (accelCalibrationCycle && baroCalibrationCycle && gnssCalibrationCycle) {
           shortBeep();
@@ -88,7 +79,7 @@ void FlightLogicTask(void* pvParameters) {
           gnssCalibrationCycle = false;
         }
 
-        if (accelLaunchCtr > 60 || gnssLaunchCtr > 10) {
+        if (accelLaunchCtr > 60) {
           longBeepXTimes(3);
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_FLIGHT_TX_RATE), 0);
           flightState = FLIGHT_BOOST;
@@ -96,9 +87,8 @@ void FlightLogicTask(void* pvParameters) {
 
       } break;
       case FLIGHT_BOOST: {
-        /* Burnout is detected when 1/2 conditions are true:
+        /* Burnout is detected when:
          - Accel velocity has dropped 3m/s below the max accel velocity for 10 readings in a row
-         - GNSS vertical velocity has dropped 3m/s below the max GNSS velocity for 25 readings in a row
         */
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
@@ -109,17 +99,8 @@ void FlightLogicTask(void* pvParameters) {
           else
             accelBurnoutCtr = 0;
         }
-        
-        // ONLY UPDATE IF NEW GNSS DATA IS AVAILABLE
-        if (bits & GNSS_SENSOR_EVENT) {
-          float gnssDelta = maxGnssVertVel - gnssVertVel;
-          if (gnssDelta > 3 && gnssValidReadings) // High chance of invalid readings at high velocities
-            gnssBurnoutCtr++;
-          else
-            gnssBurnoutCtr = 0;
-        }
 
-        if (accelBurnoutCtr > 10 || gnssBurnoutCtr > 25) {
+        if (accelBurnoutCtr > 10) {
           flightState = FLIGHT_BURNOUT;
         }
 

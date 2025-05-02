@@ -59,10 +59,8 @@ extern bool gnssValidReadings;
 extern bool gnssHasFix;
 
 extern uint16_t accelLaunchCtr;
-extern uint16_t gnssLaunchCtr;
 
 extern uint16_t accelBurnoutCtr;
-extern uint16_t gnssBurnoutCtr;
 
 extern uint16_t baroApogeeCtr;
 extern uint16_t gnssApogeeCtr;
