@@ -17,8 +17,8 @@
 #define LORA_CODINGRATE 1		// [1: 4/5, 2: 4/6,  3: 4/7,  4: 4/8]
 #define LORA_PREAMBLE_LENGTH 12  // Same for Tx and Rx
 #define LORA_SYMBOL_TIMEOUT 0   // Symbols
-#define LORA_FIX_LENGTH_PAYLOAD_ON false
-#define LORA_IQ_INVERSION_ON false
+#define LORA_FIX_LENGTH_PAYLOAD false
+#define LORA_IQ_INVERSION false
 #define RX_TIMEOUT_VALUE 3000
 #define TX_TIMEOUT_VALUE 3000
 
@@ -90,11 +90,11 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
     LORA_SPREADING_FACTOR, 
     LORA_CODINGRATE,
     LORA_PREAMBLE_LENGTH, 
-    LORA_FIX_LENGTH_PAYLOAD_ON,
+    LORA_FIX_LENGTH_PAYLOAD,
     true, 
     0, 
     0, 
-    LORA_IQ_INVERSION_ON, 
+    LORA_IQ_INVERSION, 
     TX_TIMEOUT_VALUE
   );
   Radio.SetRxConfig(
@@ -105,12 +105,12 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
     0,
     LORA_PREAMBLE_LENGTH,
     LORA_SYMBOL_TIMEOUT, 
-    LORA_FIX_LENGTH_PAYLOAD_ON,
+    LORA_FIX_LENGTH_PAYLOAD,
     0, 
     true, 
     0, 
     0, 
-    LORA_IQ_INVERSION_ON, 
+    LORA_IQ_INVERSION, 
     true
   );
   Radio.RxBoosted(0);
@@ -234,7 +234,8 @@ void processRadioCommands(char* command, int data) {
     xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_IDLE_TX_RATE), 0);
     flightState = FLIGHT_IDLE;
   }
-  else if (strcmp(command, FIRE_PYRO_CMD) == 0 && data >= 0 && data <= 3) {
+  // Do not fire pyros when system is ARMED, could cause launch detection
+  else if (strcmp(command, FIRE_PYRO_CMD) == 0 && data >= 0 && data <= 3 && flightState == FLIGHT_IDLE) {
     longBeep();
     delay(1000);
     firePyro(data);
