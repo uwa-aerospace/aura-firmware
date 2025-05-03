@@ -60,12 +60,12 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_ARMED: {
         /* Launch is detected when:
-         - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G for 60 readings in a row (150ms delay)
+         - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G (excluding gravity) for 60 readings in a row (150ms delay)
         */
 
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (accelVertVel > 5 && accelRaw.mag() > 3)
+          if (accelVertVel > 5 && accelRaw.mag() > 4)
             accelLaunchCtr++;
           else // Reset counter if condition is no longer true (counters transients)
             accelLaunchCtr = 0;

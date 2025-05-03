@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include "SPI.h"
 
-// #include <WiFi.h>
-// #include "esp_bt.h"
-// #include "esp_wifi.h"
-// #include "esp_log.h"
+#include <WiFi.h>
+#include "esp_bt.h"
+#include "esp_wifi.h"
+#include "esp_log.h"
 #include "esp_task_wdt.h"
 
 #include "freertos/FreeRTOS.h"
@@ -79,13 +79,13 @@ void setup() {
   Serial.begin(460800);
 
   // Disable WiFi and BLE to save power
-  // WiFi.disconnect(true);
-  // WiFi.mode(WIFI_OFF);
-  // esp_wifi_deinit();
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  esp_wifi_deinit();
 
-  // esp_bt_controller_disable();
-  // esp_bt_controller_deinit();
-  // esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+  esp_bt_controller_disable();
+  esp_bt_controller_deinit();
+  esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
 
   // Disable WDT to prevent the possibility of in flight restarts
   esp_task_wdt_deinit();
