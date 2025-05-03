@@ -279,6 +279,9 @@ void AccelerometerTask(void* pvParameters) {
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
       if (calCount >= IMU_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelFiltered.mag() < CALIBRATION_APPLY_THRESHOLD) {
         shouldCal = true;
+        accelCalibrationSums = vec3_t(0,0,0);
+        gyroCalibrationSums = vec3_t(0,0,0);
+        samplesCollected = 0;
         calCount = 0;
       }
 

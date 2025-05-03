@@ -129,6 +129,8 @@ void BarometerTask(void *pvParameters) {
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
       if (baroCalCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {
         shouldCalBaro = true;
+        padAltitudeSum = 0;
+        baroSamplesCollected = 0;
         baroCalCount = 0;
       }
 
