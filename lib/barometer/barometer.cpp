@@ -59,7 +59,7 @@ uint16_t baroSamplesCollected = 0;
 bool shouldCalBaro = true;
 float padAltitudeSum = 0;
 uint32_t baroCalCount = 0;
-#define BARO_RECAL_THRESHOLD 1000 // Recalibrate once every 20 seconds whilst armed on the pad
+#define BARO_RECAL_THRESHOLD 500 // Recalibrate once every 10 seconds whilst armed on the pad
 
 void setupKfBaro() {
   float baroMeasErr = 0.008f;

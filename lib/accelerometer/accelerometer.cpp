@@ -135,7 +135,7 @@ float accelGravityOffset = 0;
 bool shouldCal = true;
 bool initialCalibration = false;
 uint32_t calCount = 0;
-#define IMU_RECAL_THRESHOLD 8320 // Recalibrate once every 20 seconds whilst armed on the pad
+#define IMU_RECAL_THRESHOLD 4170 // Recalibrate once every 10 seconds whilst armed on the pad
 
 void setGravityRotQuatn() {
   accelCalibrationSums /= samplesRequired;
