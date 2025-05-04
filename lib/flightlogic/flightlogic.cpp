@@ -110,7 +110,7 @@ void FlightLogicTask(void* pvParameters) {
          - Accel velocity is < 0 for 50 readings in a row
          - Gyro tilt angle is > 90 degrees for 50 readings in a row
          - Barometric velocity < 0 for 50 readings in a row AND velocity is < 150m/s (Mach lockout)
-         - GNSS velocity < 0 for 25 readings in a row
+         - GNSS velocity < 0 for 25 readings in a row, valid readings and accel velocity < 150m/s (pDOP fault tolerance)
         */
 
         if (bits & IMU_SENSOR_EVENT) {
@@ -133,7 +133,7 @@ void FlightLogicTask(void* pvParameters) {
         }
 
         if (bits & GNSS_SENSOR_EVENT) {
-          if (gnssVertVel < 0 && gnssValidReadings)
+          if (gnssVertVel < 0 && gnssValidReadings && accelVertVel < 150)
             gnssApogeeCtr++;
           else
             gnssApogeeCtr = 0;
