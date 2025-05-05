@@ -133,91 +133,50 @@ void OnRxDone(uint8_t* payload, uint16_t size, int16_t rssi, int8_t snr) {
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-char transmitBuf[255];
-int txBufStrPos;
-const uint8_t base = 10;
-const char cs = ',';
+uint8_t transmitBuf[127];
+uint8_t txBufIndex = 0;
 void OnTxDone(void) {
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
   xSemaphoreGiveFromISR(txDoneSemaphore, &xHigherPriorityTaskWoken);
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void writeIntDataRadioStr(int dataValue) {
-  itoa(dataValue, transmitBuf + txBufStrPos, base);
-  while(transmitBuf[txBufStrPos]!= '\0'){txBufStrPos++;}
-  transmitBuf[txBufStrPos] = cs;
-  txBufStrPos++;
+void writeInt16(int16_t value) {
+  transmitBuf[txBufIndex++] = value >> 8;
+  transmitBuf[txBufIndex++] = value & 0xFF;
 }
 
-void writeFloatDataRadioStr(float dataValue, byte decimals){
-  long fracInt;
-  float partial;
-
-  //sign portion
-  if (dataValue < 0) {
-    transmitBuf[txBufStrPos] = '-'; 
-    txBufStrPos++;
-    dataValue *= -1;
-  }
-  
-  //integer portion
-  itoa((int)dataValue, transmitBuf + txBufStrPos, base);
-  while(transmitBuf[txBufStrPos]!= '\0'){ txBufStrPos++; }
-  transmitBuf[txBufStrPos]='.'; txBufStrPos++;
-  
-  //fractional portion
-  partial = dataValue - (int)(dataValue);
-  fracInt = (long)(partial*powf(10,decimals));
-  if (fracInt == 0) {
-    transmitBuf[txBufStrPos] = '0'; 
-    txBufStrPos++; 
-    transmitBuf[txBufStrPos] = cs; 
-    txBufStrPos++;
-  }
-  else {
-    decimals--;
-    while(fracInt < powf(10, decimals)){ 
-      transmitBuf[txBufStrPos]='0';
-      txBufStrPos++;
-      decimals--; 
-    }
-    ltoa(fracInt, transmitBuf + txBufStrPos, base);
-    while(transmitBuf[txBufStrPos]!= '\0'){ txBufStrPos++; }
-    transmitBuf[txBufStrPos]=','; txBufStrPos++;
-  }
+void writeInt32(int32_t value) {
+  transmitBuf[txBufIndex++] = (value >> 24) & 0xFF;
+  transmitBuf[txBufIndex++] = (value >> 16) & 0xFF;
+  transmitBuf[txBufIndex++] = (value >> 8) & 0xFF;
+  transmitBuf[txBufIndex++] = value & 0xFF;
 }
 
 // RADIO TO SEND
 // 500 MS (2 HZ) ON THE GROUND: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon, accelXYZ, gyroXYZ
-// 100 MS (10HZ) IN THE AIR: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon
+// 66.67 MS (15Hz) IN THE AIR: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon, accelXYZ, gyroXYZ
 void buildDataString() {
   // Write all data (except lat/lon) as ints to save payload space
-  writeIntDataRadioStr(flightState);
+  transmitBuf[txBufIndex++] = flightState;
         
-  writeIntDataRadioStr((int) baroAltitudeAGL);
-  writeIntDataRadioStr((int) gnssAltitudeAGL);
+  writeInt16((int16_t) baroAltitudeAGL);
+  writeInt16((int16_t) gnssAltitudeAGL);
 
-  writeIntDataRadioStr((int) accelVertVel);
-  writeIntDataRadioStr((int) baroVertVel);
-  writeIntDataRadioStr((int) gnssVertVel);
-  writeIntDataRadioStr((int) tiltAngle);
+  writeInt32((int32_t)(accelVertVel * 100));
+  writeInt32((int32_t)(baroVertVel * 100));
+  writeInt32((int32_t)(gnssVertVel * 100));
+  writeInt16((int16_t)(tiltAngle * 100));
 
-  // 5 dp lat/lon is sufficient precision
-  writeFloatDataRadioStr(gnssLatitude, 5);
-  writeFloatDataRadioStr(gnssLongitude, 5);
+  writeInt32((int32_t)(gnssLatitude * 1e5));
+  writeInt32((int32_t)(gnssLongitude * 1e5));
 
-  // Send accel and gyro XYZ values when not launched for debugging/validation
-  if (flightState == FLIGHT_ARMED) {
-    writeFloatDataRadioStr(accelCorrected.x, 2);
-    writeFloatDataRadioStr(accelCorrected.y, 2);
-    writeFloatDataRadioStr(accelCorrected.z, 2);
-    writeFloatDataRadioStr(gyroCorrected.x, 2);
-    writeFloatDataRadioStr(gyroCorrected.y, 2);
-    writeFloatDataRadioStr(gyroCorrected.z, 2);
-  }
-  txBufStrPos--;
-  transmitBuf[txBufStrPos] = '\0';
+  writeInt16((int16_t)(accelCorrected.x * 100));
+  writeInt16((int16_t)(accelCorrected.y * 100));
+  writeInt16((int16_t)(accelCorrected.z * 100));
+  writeInt16((int16_t)(gyroCorrected.x * 10));
+  writeInt16((int16_t)(gyroCorrected.y * 10));
+  writeInt16((int16_t)(gyroCorrected.z * 10));
 }
 
 void processRadioCommands(char* command, int data) {
@@ -255,11 +214,11 @@ void RadioTask(void *pvParameters) {
     if (bits & TRANSMIT_BIT) {
       buildDataString();
 
-      Radio.Send((uint8_t*) transmitBuf, strlen(transmitBuf));
+      Radio.Send(transmitBuf, txBufIndex);
 
       if (xSemaphoreTake(txDoneSemaphore, portMAX_DELAY) == pdTRUE) {
         Radio.RxBoosted(0);
-        txBufStrPos = 0;
+        txBufIndex = 0;
       }
     }
 
