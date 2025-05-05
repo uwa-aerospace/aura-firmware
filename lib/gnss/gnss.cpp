@@ -73,7 +73,7 @@ SetupStatus setupGNSS(HardwareSerial &serialPort) {
 bool shouldCalGnss = true;
 float gnssPadAltitudeSum = 0;
 uint32_t gnssCalCount = 0;
-#define GNSS_RECAL_THRESHOLD 250 // Recalibrate once every 10 seconds whilst armed on the pad
+#define GNSS_RECAL_THRESHOLD 125 // Recalibrate every 5 seconds whilst armed on the pad
 
 uint16_t gnssSamplesRequired = 50;
 uint16_t gnssSamplesCollected = 0;
