@@ -89,12 +89,17 @@ void FlightLogicTask(void* pvParameters) {
       case FLIGHT_BOOST: {
         /* Burnout is detected when:
          - Accel velocity has dropped 3m/s below the max accel velocity for 10 readings in a row
+         - Rocket max velocity has exceeded 20m/s at any point in the flight
         */
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
           float accelDelta = maxAccelVertVel - accelVertVel;
-          if (accelDelta > 3)
+          
+          if (maxAccelVertVel > 20)
+            canDetectBurnout = true;
+
+          if (accelDelta > 3 && canDetectBurnout)
             accelBurnoutCtr++;
           else
             accelBurnoutCtr = 0;
@@ -177,8 +182,8 @@ void FlightLogicTask(void* pvParameters) {
         /* Landing is detected when 1/4 conditions are true:
          - Barometric velocity is between -0.5 and 0.5 for 50 readings in a row
          - GNSS velocity is between -0.5 and 0.5 for 25 readings in a row
-         - Magnitude of accel is between 0.9-1.1G for 50 readings in a row
-         - Magnitude of gyro rates is between 0 and 1.5 deg/sec for 50 readings in a row
+         - Magnitude of accel is between 0.9-1.1G for 200 readings in a row
+         - Magnitude of gyro rates is between 0 and 1.5 deg/sec for 200 readings in a row
         */
         if (bits & IMU_SENSOR_EVENT) {
           float accelMag = accelRaw.mag();
@@ -208,7 +213,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssLandingCtr = 0;
         }
 
-        if (baroLandingCtr > 50 || gnssLandingCtr > 50 || accelLandingCtr > 50 || gyroLandingCtr > 50) {
+        if (baroLandingCtr > 50 || gnssLandingCtr > 50 || accelLandingCtr > 200 || gyroLandingCtr > 200) {
           flushLogFile();
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
           flightState = FLIGHT_IDLE;

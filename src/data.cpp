@@ -36,6 +36,7 @@ bool gnssHasFix = false;
 
 uint16_t accelLaunchCtr = 0;
 
+bool canDetectBurnout = false;
 uint16_t accelBurnoutCtr = 0;
 
 uint16_t baroApogeeCtr = 0;

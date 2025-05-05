@@ -60,6 +60,7 @@ extern bool gnssHasFix;
 
 extern uint16_t accelLaunchCtr;
 
+extern bool canDetectBurnout;
 extern uint16_t accelBurnoutCtr;
 
 extern uint16_t baroApogeeCtr;
