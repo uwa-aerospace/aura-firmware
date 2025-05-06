@@ -157,7 +157,6 @@ void writeInt32(int32_t value) {
 // 500 MS (2 HZ) ON THE GROUND: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon, accelXYZ, gyroXYZ
 // 66.67 MS (15Hz) IN THE AIR: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon, accelXYZ, gyroXYZ
 void buildDataString() {
-  // Write all data (except lat/lon) as ints to save payload space
   transmitBuf[txBufIndex++] = flightState;
         
   writeInt16((int16_t) baroAltitudeAGL);
