@@ -100,31 +100,24 @@ void setup() {
   digitalWrite(ACCEL_CS, HIGH);
   digitalWrite(MEM_CS, HIGH);
 
-  // GNSS SETUP
   Serial2.begin(460800, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
-
-  // Barometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
-
-  // SD card SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
-
-  // Setup shared SPI bus to avoid individual SPI setup clashes
   SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
   SPI.setFrequency(10000000);
-  
-  // Accelerometer SETUP
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(ACCEL_CS, ACCEL_INT));
 
-  // Radio SETUP
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
+
   spiMutex = xSemaphoreCreateMutex();
-  if (spiMutex != NULL)
+  if (spiMutex != NULL) {
     setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY, RADIO_FREQ));
-  else
-    setupStatus = RADIO_ERROR;
+    setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(ACCEL_CS, ACCEL_INT));
+  }
+  else {
+    setupStatus = static_cast<SetupStatus>(setupStatus | RADIO_ERROR | ACCEL_ERROR);
+  }
 
-  // Misc setups, no checks required because they will generally always succeed
+  // No status checks required because they will generally always succeed
   setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
   setupBuzzer(BUZZER_PIN);
   setupFlightLogic(MAIN_DEPLOY_ALT);
