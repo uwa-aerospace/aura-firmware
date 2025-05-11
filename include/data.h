@@ -52,7 +52,6 @@ extern float gnssLongitude;
 extern float gnssAltitudeMSL;
 extern float gnssAltitudeAGL;
 extern float gnssVertVel;
-extern float maxGnssVertVel;
 extern float gnssPadAltitude;
 extern float gnssPDOP;
 extern bool gnssValidReadings;
