@@ -97,7 +97,7 @@ void GnssTask(void *pvParameters) {
           
           // Altitude and vert vel are measured in mm (mm/s)
           gnssAltitudeMSL = pvt.hMSL / 1000.0;
-          gnssVertVel = pvt.velD / 1000.0;
+          gnssVertVel = (pvt.velD / 1000.0) * -1;
 
           gnssPDOP = pvt.pDOP / 100.0;
           gnssValidReadings = (gnssPDOP < 3);
