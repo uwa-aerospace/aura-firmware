@@ -207,7 +207,7 @@ void FlightLogicTask(void* pvParameters) {
         }
 
         if (bits & GNSS_SENSOR_EVENT) {
-          if (gnssVertVel > -0.5 && gnssValidReadings < 0.5 && gnssValidReadings)
+          if (gnssVertVel > -0.5 && gnssVertVel < 0.5 && gnssValidReadings)
             gnssLandingCtr++;
           else
             gnssLandingCtr = 0;

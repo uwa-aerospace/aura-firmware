@@ -199,7 +199,7 @@ void AccelerometerTask(void* pvParameters) {
       if (flightState == FLIGHT_ARMED && shouldCal) {
         if (samplesCollected < samplesRequired) {
           // If the IMU is moving, do not add samples to calibration average
-          if (accelFiltered.mag() > 0.9 && accelFiltered.mag() < 1.1 && gyroFiltered.mag() < 1.0) {
+          if (accelFiltered.mag() > 0.9 && accelFiltered.mag() < 1.1 && gyroFiltered.mag() < 2.0) {
             accelCalibrationSums += accelFiltered;
             gyroCalibrationSums += gyroFiltered;
             samplesCollected++;
