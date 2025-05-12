@@ -225,8 +225,13 @@ void processRadioCommands(char* command, int data) {
 
   if (strcmp(command, ARM_CMD) == 0) {
     shortBeepXTimes(3);
+    
     delay(1000);
     xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
+
+    accelVertVel = 0;
+    attitudeQuatn = quat_t(1,0,0,0);
+
     flightState = FLIGHT_ARMED;
   }
   else if (strcmp(command, DISARM_CMD) == 0) {
