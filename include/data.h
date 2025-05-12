@@ -31,8 +31,8 @@ extern bool gnssCalibrationCycle;
 // IMU DATA
 extern vec3_t accelRaw; // g, unfiltered
 extern vec3_t gyroRaw;  // dps, unfiltered
-extern vec3_t accelCorrected; // g, filtered 1D kalman, rotated to world frame
-extern vec3_t gyroCorrected;  // dps, filtered 1D kalman, zero biases subtracted
+extern vec3_t accelCorrected; // g, rotated to world frame
+extern vec3_t gyroCorrected;  // dps, zero biases subtracted, rotated to world frame
 
 extern quat_t attitudeQuatn; // result of gyro integration
 extern float tiltAngle;      // gyro angle from vertical [0,0,1]
