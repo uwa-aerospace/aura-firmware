@@ -35,7 +35,7 @@ extern vec3_t accelCorrected; // g, rotated to world frame
 extern vec3_t gyroCorrected;  // dps, zero biases subtracted, rotated to world frame
 
 extern quat_t attitudeQuatn; // result of gyro integration
-extern float tiltAngle;      // gyro angle from vertical [0,0,1]
+extern float tiltAngle;      // gyro angle from rocket axis
 extern float accelVertVel;   // result of Z acceleration integration
 extern float maxAccelVertVel;
 
@@ -57,6 +57,8 @@ extern float gnssPDOP;
 extern bool gnssValidReadings;
 extern bool gnssHasFix;
 
+extern unsigned long flightStartTime;
+
 extern uint16_t accelLaunchCtr;
 
 extern bool canDetectBurnout;
@@ -70,7 +72,6 @@ extern uint16_t gyroApogeeCtr;
 extern uint16_t baroMainCtr;
 extern uint16_t gnssMainCtr;
 
-extern uint16_t accelLandingCtr;
 extern uint16_t gyroLandingCtr;
 extern uint16_t baroLandingCtr;
 extern uint16_t gnssLandingCtr;

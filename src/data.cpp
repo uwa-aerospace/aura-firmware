@@ -33,6 +33,8 @@ float gnssPDOP = 0;
 bool gnssValidReadings = false;
 bool gnssHasFix = false;
 
+extern unsigned long flightStartTime = 0;
+
 uint16_t accelLaunchCtr = 0;
 
 bool canDetectBurnout = false;
@@ -46,7 +48,6 @@ uint16_t gyroApogeeCtr = 0;
 uint16_t baroMainCtr = 0;
 uint16_t gnssMainCtr = 0;
 
-uint16_t accelLandingCtr = 0;
 uint16_t gyroLandingCtr = 0;
 uint16_t baroLandingCtr = 0;
 uint16_t gnssLandingCtr = 0;
