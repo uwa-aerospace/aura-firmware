@@ -62,6 +62,7 @@ extern bool gnssHasFix;
 extern unsigned long flightStartTime;
 
 extern uint16_t accelLaunchCtr;
+extern uint16_t falseLaunchCtr;
 
 extern bool canDetectBurnout;
 extern uint16_t accelBurnoutCtr;

@@ -38,6 +38,7 @@ bool gnssHasFix = false;
 unsigned long flightStartTime = 0;
 
 uint16_t accelLaunchCtr = 0;
+uint16_t falseLaunchCtr = 0;
 
 bool canDetectBurnout = false;
 uint16_t accelBurnoutCtr = 0;

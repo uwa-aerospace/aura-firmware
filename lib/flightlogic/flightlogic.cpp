@@ -97,27 +97,17 @@ void FlightLogicTask(void* pvParameters) {
          - Flight time is greater than 250ms (ignores initial motor noise transients)
          - Acceleration drops below 3G
          - Rocket velocity has not exceeded 20m/s at any point in the flight, i.e. burnout cannot be detected
+         And all 3 conditions are true for 25 readings in a row (ignores further transients)
 
          If false launch is detected, reset IMU values and return to FLIGHT_ARMED state
         */
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (millis() - flightStartTime > 250 && accelRaw.mag() < 3 && !canDetectBurnout) {
-            shortBeepXTimes(2);
-            
-            // Reset integrated sensor values (IMU only) to prevent error accumulation
-            accelVertVel = 0;
-            maxAccelVertVel = 0;
-            
-            attitudeQuatn = quat_t(1,0,0,0);
-            tiltAngle = 0;
-
-            accelLaunchCtr = 0; // Reset launch counter to prevent system from immediately going back to FLIGHT_BOOST
-            
-            xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
-            flightState = FLIGHT_ARMED;
-          }
+          if (millis() - flightStartTime > 250 && accelRaw.mag() < 3 && !canDetectBurnout)
+            falseLaunchCtr++;
+          else
+            falseLaunchCtr = 0;
 
           if (maxAccelVertVel > 20)
             canDetectBurnout = true;
@@ -128,6 +118,23 @@ void FlightLogicTask(void* pvParameters) {
             accelBurnoutCtr++;
           else
             accelBurnoutCtr = 0;
+        }
+
+        if (falseLaunchCtr > 25) {
+          shortBeepXTimes(2);
+          
+          // Reset integrated sensor values (IMU only) to prevent error accumulation
+          accelVertVel = 0;
+          maxAccelVertVel = 0;
+          
+          attitudeQuatn = quat_t(1,0,0,0);
+          tiltAngle = 0;
+
+          falseLaunchCtr = 0; // Reset false launch counter to prevent system from redetecting false launch on actual lauch
+          accelLaunchCtr = 0; // Reset launch counter to prevent system from immediately going back to FLIGHT_BOOST
+          
+          xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
+          flightState = FLIGHT_ARMED;
         }
 
         if (accelBurnoutCtr > 5) {
