@@ -17,7 +17,9 @@ float accelVertVel = 0;
 float maxAccelVertVel = 0;
 
 float baroAltitudeMSL = 0;
+float rawAltitudeAGL = 0;
 float baroAltitudeAGL = 0;
+float kalmanBaroVel = 0;
 float baroVertVel = 0;
 int baroPressure = 0;
 float baroPadAltitude = 0;
@@ -33,7 +35,7 @@ float gnssPDOP = 0;
 bool gnssValidReadings = false;
 bool gnssHasFix = false;
 
-extern unsigned long flightStartTime = 0;
+unsigned long flightStartTime = 0;
 
 uint16_t accelLaunchCtr = 0;
 

@@ -40,9 +40,11 @@ extern float accelVertVel;   // result of Z acceleration integration
 extern float maxAccelVertVel;
 
 // BARO DATA
-extern float baroAltitudeMSL; // m, filtered 2D kalman
+extern float baroAltitudeMSL; // m, unfiltered
+extern float rawAltitudeAGL;  // m, unfiltered, pad altitude subtracted
 extern float baroAltitudeAGL; // m, filtered 2D kalman
-extern float baroVertVel;     // m/s, filtered 2D kalman
+extern float kalmanBaroVel;   // m/s, filtered 2D kalman
+extern float baroVertVel;     // m/s filtered 2D kalman, smoothed with EMA
 extern int baroPressure;      // pascals, unfiltered
 extern float baroPadAltitude;
 
