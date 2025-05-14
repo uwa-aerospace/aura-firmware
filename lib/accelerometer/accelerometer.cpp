@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include "SPI.h"
-// #include "lsm6dsm_reg.h"
 #include "lsm6dsox_reg.h"
 
 #include "accelerometer.h"
@@ -8,7 +7,6 @@
 #include "data.h"
 #include "vector_type.h"
 #include "quaternion_type.h"
-#include "SimpleKalmanFilter.h"
 
 #define TAG "ACCELEROMETER"
 #define GRAVITY_ACCEL 9.80665
