@@ -130,7 +130,7 @@ void FlightLogicTask(void* pvParameters) {
           attitudeQuatn = quat_t(1,0,0,0);
           tiltAngle = 0;
 
-          falseLaunchCtr = 0; // Reset false launch counter to prevent system from redetecting false launch on actual lauch
+          falseLaunchCtr = 0; // Reset false launch counter to prevent system from redetecting false launch on actual launch
           accelLaunchCtr = 0; // Reset launch counter to prevent system from immediately going back to FLIGHT_BOOST
           
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);

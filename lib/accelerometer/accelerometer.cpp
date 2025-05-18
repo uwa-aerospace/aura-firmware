@@ -108,7 +108,6 @@ uint16_t samplesCollected = 0;
 quat_t gravityRotQuatn;
 vec3_t gyroBiases(0,0,0);
 vec3_t gyroRadsPerSec;
-float accelGravityOffset = 0;
 
 bool shouldCal = true;
 bool initialCalibration = false;
@@ -143,7 +142,6 @@ void setGravityRotQuatn() {
   gravityRotQuatn = gravityRotQuatn.norm();
 
   accelCorrected = gravityRotQuatn.rotate(accelCalibrationSums, false);
-  accelGravityOffset = accelCorrected.z - 1.0f; // Determine sensor offset from gravity
 }
 
 uint64_t lastMeasurement;
@@ -207,7 +205,6 @@ void AccelerometerTask(void* pvParameters) {
 
       // Accel integration to vertical velocity (does not use gyroscope)
       accelCorrected = gravityRotQuatn.rotate(accelRaw, false);
-      accelCorrected.z -= accelGravityOffset; // Make sure gravity is as close to 1G as possible
       accelCorrected.z -= 1; // Subtract gravity (1G)
       float accelZ_mSec = accelCorrected.z * GRAVITY_ACCEL;
 
