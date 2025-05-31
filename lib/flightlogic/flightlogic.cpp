@@ -130,6 +130,8 @@ void FlightLogicTask(void* pvParameters) {
           attitudeQuatn = quat_t(1,0,0,0);
           tiltAngle = 0;
 
+          resetLogTimeAtLaunch = false; // Restart flight timer for logging
+
           falseLaunchCtr = 0; // Reset false launch counter to prevent system from redetecting false launch on actual launch
           accelLaunchCtr = 0; // Reset launch counter to prevent system from immediately going back to FLIGHT_BOOST
           

@@ -191,7 +191,7 @@ void LoggingTask(void* pvParameters) {
 
     if (flightState == FLIGHT_IDLE) continue; // Do not log during idle to save resources
 
-    uint64_t now = micros();
+    uint64_t now = millis();
     float dt = (now - lastLogTime) * 1e-3;
     lastLogTime = now;
 
