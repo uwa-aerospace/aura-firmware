@@ -31,18 +31,20 @@ extern bool gnssCalibrationCycle;
 // IMU DATA
 extern vec3_t accelRaw; // g, unfiltered
 extern vec3_t gyroRaw;  // dps, unfiltered
-extern vec3_t accelCorrected; // g, filtered 1D kalman, rotated to world frame
-extern vec3_t gyroCorrected;  // dps, filtered 1D kalman, zero biases subtracted
+extern vec3_t accelCorrected; // g, rotated to world frame
+extern vec3_t gyroCorrected;  // dps, zero biases subtracted, rotated to world frame
 
 extern quat_t attitudeQuatn; // result of gyro integration
-extern float tiltAngle;      // gyro angle from vertical [0,0,1]
+extern float tiltAngle;      // gyro angle from rocket axis
 extern float accelVertVel;   // result of Z acceleration integration
 extern float maxAccelVertVel;
 
 // BARO DATA
-extern float baroAltitudeMSL; // m, filtered 2D kalman
+extern float baroAltitudeMSL; // m, unfiltered
+extern float rawAltitudeAGL;  // m, unfiltered, pad altitude subtracted
 extern float baroAltitudeAGL; // m, filtered 2D kalman
-extern float baroVertVel;     // m/s, filtered 2D kalman
+extern float kalmanBaroVel;   // m/s, filtered 2D kalman
+extern float baroVertVel;     // m/s filtered 2D kalman, smoothed with EMA
 extern int baroPressure;      // pascals, unfiltered
 extern float baroPadAltitude;
 
@@ -52,13 +54,15 @@ extern float gnssLongitude;
 extern float gnssAltitudeMSL;
 extern float gnssAltitudeAGL;
 extern float gnssVertVel;
-extern float maxGnssVertVel;
 extern float gnssPadAltitude;
 extern float gnssPDOP;
 extern bool gnssValidReadings;
 extern bool gnssHasFix;
 
+extern unsigned long flightStartTime;
+
 extern uint16_t accelLaunchCtr;
+extern uint16_t falseLaunchCtr;
 
 extern bool canDetectBurnout;
 extern uint16_t accelBurnoutCtr;
@@ -71,7 +75,6 @@ extern uint16_t gyroApogeeCtr;
 extern uint16_t baroMainCtr;
 extern uint16_t gnssMainCtr;
 
-extern uint16_t accelLandingCtr;
 extern uint16_t gyroLandingCtr;
 extern uint16_t baroLandingCtr;
 extern uint16_t gnssLandingCtr;

@@ -60,12 +60,12 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_ARMED: {
         /* Launch is detected when:
-         - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G (excluding gravity) for 60 readings in a row (150ms delay)
+         - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G for 5 readings in a row
         */
 
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (accelVertVel > 5 && accelRaw.mag() > 4)
+          if (accelVertVel > 5 && accelRaw.mag() > 3)
             accelLaunchCtr++;
           else // Reset counter if condition is no longer true (counters transients)
             accelLaunchCtr = 0;
@@ -79,25 +79,40 @@ void FlightLogicTask(void* pvParameters) {
           gnssCalibrationCycle = false;
         }
 
-        if (accelLaunchCtr > 60) {
+        if (accelLaunchCtr > 5) {
           longBeepXTimes(3);
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_FLIGHT_TX_RATE), 0);
+          flightStartTime = millis();
           flightState = FLIGHT_BOOST;
         }
 
       } break;
       case FLIGHT_BOOST: {
         /* Burnout is detected when:
-         - Accel velocity has dropped 3m/s below the max accel velocity for 10 readings in a row
-         - Rocket max velocity has exceeded 20m/s at any point in the flight
+         - Accel velocity has dropped 3m/s below the max accel velocity for 5 readings in a row
+         - Rocket velocity has exceeded 20m/s at any point in the flight
+        */
+
+        /* False launch is detected when:
+         - Flight time is greater than 500ms (ignores initial motor noise transients)
+         - Acceleration drops below 3G
+         - Rocket velocity has not exceeded 20m/s at any point in the flight, i.e. burnout cannot be detected
+         And all 3 conditions are true for 25 readings in a row (ignores further transients)
+
+         If false launch is detected, reset IMU values and return to FLIGHT_ARMED state
         */
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          float accelDelta = maxAccelVertVel - accelVertVel;
-          
+          if (millis() - flightStartTime > 500 && accelRaw.mag() < 3 && !canDetectBurnout)
+            falseLaunchCtr++;
+          else
+            falseLaunchCtr = 0;
+
           if (maxAccelVertVel > 20)
             canDetectBurnout = true;
+
+          float accelDelta = maxAccelVertVel - accelVertVel;
 
           if (accelDelta > 3 && canDetectBurnout)
             accelBurnoutCtr++;
@@ -105,17 +120,34 @@ void FlightLogicTask(void* pvParameters) {
             accelBurnoutCtr = 0;
         }
 
-        if (accelBurnoutCtr > 10) {
+        if (falseLaunchCtr > 25) {
+          shortBeepXTimes(2);
+          
+          // Reset integrated sensor values (IMU only) to prevent error accumulation
+          accelVertVel = 0;
+          maxAccelVertVel = 0;
+          
+          attitudeQuatn = quat_t(1,0,0,0);
+          tiltAngle = 0;
+
+          falseLaunchCtr = 0; // Reset false launch counter to prevent system from redetecting false launch on actual launch
+          accelLaunchCtr = 0; // Reset launch counter to prevent system from immediately going back to FLIGHT_BOOST
+          
+          xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
+          flightState = FLIGHT_ARMED;
+        }
+
+        if (accelBurnoutCtr > 5) {
           flightState = FLIGHT_BURNOUT;
         }
 
       } break;
       case FLIGHT_BURNOUT: {
         /* Apogee is detected when 2/4 conditions are true:
-         - Accel velocity is < 0 for 50 readings in a row
-         - Gyro tilt angle is > 90 degrees for 50 readings in a row
+         - Accel velocity is < 0 for 20 readings in a row
+         - Gyro tilt angle is > 90 degrees for 20 readings in a row
          - Barometric velocity < 0 for 50 readings in a row AND velocity is < 150m/s (Mach lockout)
-         - GNSS velocity < 0 for 25 readings in a row, valid readings and accel velocity < 150m/s (pDOP fault tolerance)
+         - GNSS velocity < 0 for 25 readings in a row, valid readings AND accel velocity < 150m/s (pDOP fault tolerance)
         */
 
         if (bits & IMU_SENSOR_EVENT) {
@@ -144,7 +176,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssApogeeCtr = 0;
         }
 
-        int apogeeConditionsCtr = (accelApogeeCtr > 50) + (gyroApogeeCtr > 50) + (baroApogeeCtr > 50) + (gnssApogeeCtr > 25);
+        int apogeeConditionsCtr = (accelApogeeCtr > 20) + (gyroApogeeCtr > 20) + (baroApogeeCtr > 50) + (gnssApogeeCtr > 25);
         if (apogeeConditionsCtr >= 2) {
           firePyro(0);
           esp_timer_start_once(apogeeBackupTimer, BACKUP_DELAY);
@@ -182,18 +214,11 @@ void FlightLogicTask(void* pvParameters) {
         /* Landing is detected when 1/4 conditions are true:
          - Barometric velocity is between -0.5 and 0.5 for 50 readings in a row
          - GNSS velocity is between -0.5 and 0.5 for 25 readings in a row
-         - Magnitude of accel is between 0.9-1.1G for 200 readings in a row
-         - Magnitude of gyro rates is between 0 and 1.5 deg/sec for 200 readings in a row
+         - Magnitude of gyro rates less than 2.0 deg/sec for 200 readings in a row
         */
         if (bits & IMU_SENSOR_EVENT) {
-          float accelMag = accelRaw.mag();
-          if (accelMag > 0.9 && accelMag < 1.1)
-            accelLandingCtr++;
-          else
-            accelLandingCtr = 0;
-
           float gyroMag = gyroRaw.mag();
-          if (gyroMag < 1.5)
+          if (gyroMag < 2.0)
             gyroLandingCtr++;
           else
             gyroLandingCtr = 0;
@@ -213,7 +238,7 @@ void FlightLogicTask(void* pvParameters) {
             gnssLandingCtr = 0;
         }
 
-        if (baroLandingCtr > 50 || gnssLandingCtr > 50 || accelLandingCtr > 200 || gyroLandingCtr > 200) {
+        if (baroLandingCtr > 50 || gnssLandingCtr > 50 || gyroLandingCtr > 200) {
           flushLogFile();
           xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
           flightState = FLIGHT_IDLE;

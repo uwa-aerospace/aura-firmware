@@ -8,9 +8,15 @@
 
 #define TAG "BAROMETER"
 
-#define BARO_READ_RATE 20
+#define BARO_READ_RATE 10
 
 MS5611 barometer;
+
+Kalman2D kfBaro;
+#define BARO_MEAS_ERR 0.008
+#define PROCESS_VAR   1
+#define MEAS_DT       0.01
+#define VEL_EMA_ALPHA 0.15
 
 TimerHandle_t baroReadTimer;
 SemaphoreHandle_t baroReadSemaphore;
@@ -42,86 +48,59 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
   }
   xTimerStart(baroReadTimer, 0);
 
+  kfBaro.init(0.0f, 0.0f, BARO_MEAS_ERR, BARO_MEAS_ERR, PROCESS_VAR, BARO_MEAS_ERR, MEAS_DT);
+
   ESP_LOGI(TAG, "Barometer setup successful");
 
   return SETUP_OK;
 }
 
-Kalman2D kfBaro;
-uint64_t lastBaroMeas;
-
-float kfSetupAlt = 0;
-bool kfSetup = false;
-
-uint16_t baroSamplesRequired = 100;
+uint16_t baroSamplesRequired = 200;
 uint16_t baroSamplesCollected = 0;
+float padAltitudeSum = 0;
 
 bool shouldCalBaro = true;
-float padAltitudeSum = 0;
+bool baroInitialCalibration = false;
 uint32_t baroCalCount = 0;
-#define BARO_RECAL_THRESHOLD 250 // Recalibrate every 5 seconds whilst armed on the pad
-
-void setupKfBaro() {
-  float baroMeasErr = 0.008f;
-  float processVar = 0.1f;
-  float dt = 0.02f;
-  kfBaro.init(kfSetupAlt, 0.0f, baroMeasErr, baroMeasErr, processVar, baroMeasErr, dt);
-  kfSetup = true;
-}
+#define BARO_RECAL_THRESHOLD 500 // Recalibrate every 5 seconds whilst armed on the pad
 
 void BarometerTask(void *pvParameters) {
   while (1) {
     if (xSemaphoreTake(baroReadSemaphore, portMAX_DELAY) == pdTRUE) {
       barometer.read();
-      float pressure = barometer.getPressurePascal();
-      float altitude = 44330.0 * (1.0 - pow(pressure / 101325, 0.1903));
+      baroPressure = barometer.getPressurePascal();
+      baroAltitudeMSL = 44330.0 * (1.0 - pow(baroPressure / 101325.0f, 0.1903));
 
-      // Average out altitudes for Kalman filter setup
-      if (flightState == FLIGHT_ARMED && !kfSetup) {
-        if (baroSamplesCollected < baroSamplesRequired) {
-          kfSetupAlt += altitude;
-          baroSamplesCollected++;
-        }
-        else {
-          kfSetupAlt /= baroSamplesRequired;
-          setupKfBaro();
-          baroSamplesCollected = 0;
-        }
-      }
-
-      if (!kfSetup) continue;
-
-      uint64_t now = micros();
-      float dt = (now - lastBaroMeas) * 1e-6;
-      lastBaroMeas = now;
-
-      kfBaro.dt = dt;
-
-      kfBaro.predict();
-      kfBaro.update(altitude);
-
-      baroAltitudeMSL = kfBaro.x[0];
-      baroVertVel = kfBaro.x[1];
-      baroPressure = pressure;
-
-      // Average out altitudes to find pad altitude, used for AGL altitude
+      // Measure pad altitude (0ft) by averaging MSL altitudes
       if (flightState == FLIGHT_ARMED && shouldCalBaro) {
         if (baroSamplesCollected < baroSamplesRequired) {
           padAltitudeSum += baroAltitudeMSL;
           baroSamplesCollected++;
         }
-        // Only apply calibrations if launch has not been detected and will not be detected soon (i.e. accel < 1.5g)
         else if (flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {
+          baroInitialCalibration = true;
           baroCalibrationCycle = true;
+
           baroPadAltitude = padAltitudeSum / baroSamplesRequired;
-          shouldCalBaro = false;
           padAltitudeSum = 0;
+
           baroSamplesCollected = 0;
+          shouldCalBaro = false;
         }
-        else shouldCalBaro = false;
+        else if (baroInitialCalibration) shouldCalBaro = false;
       }
 
-      baroAltitudeAGL = baroAltitudeMSL - baroPadAltitude;
+      if (!baroInitialCalibration) continue;
+
+      rawAltitudeAGL = baroAltitudeMSL - baroPadAltitude;
+
+      kfBaro.dt = MEAS_DT;
+      kfBaro.predict();
+      kfBaro.update(rawAltitudeAGL);
+
+      baroAltitudeAGL = kfBaro.x[0];
+      kalmanBaroVel = kfBaro.x[1];
+      baroVertVel = VEL_EMA_ALPHA * kalmanBaroVel + (1 - VEL_EMA_ALPHA) * baroVertVel;
 
       xEventGroupSetBits(sensorEventGroup, BARO_SENSOR_EVENT);
       xEventGroupSetBits(loggingEventGroup, BARO_SENSOR_EVENT);
@@ -136,7 +115,7 @@ void BarometerTask(void *pvParameters) {
 
       if (flightState == FLIGHT_ARMED && !shouldCalBaro) baroCalCount++;
 
-      // printf(">RA:%.2f\n>KA:%.2f\n>KV:%.2f\n", altitude, baroAltitudeMSL, baroVertVel);
+      // printf(">RAGL:%.2f\n>KAGL:%.2f\n>KVEL:%.2f\n>SVEL:%.2f\n", rawAltitudeAGL, baroAltitudeAGL, kalmanBaroVel, baroVertVel);
     }
   }
 }

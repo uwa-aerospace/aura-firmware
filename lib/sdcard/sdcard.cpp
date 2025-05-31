@@ -269,7 +269,6 @@ void LoggingTask(void* pvParameters) {
     writeIntData(baroMainCtr);
     writeIntData(gnssMainCtr);
 
-    writeIntData(accelLandingCtr);
     writeIntData(gyroLandingCtr);
     writeIntData(baroLandingCtr);
     writeIntData(gnssLandingCtr);
