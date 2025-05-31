@@ -94,7 +94,7 @@ void FlightLogicTask(void* pvParameters) {
         */
 
         /* False launch is detected when:
-         - Flight time is greater than 250ms (ignores initial motor noise transients)
+         - Flight time is greater than 500ms (ignores initial motor noise transients)
          - Acceleration drops below 3G
          - Rocket velocity has not exceeded 20m/s at any point in the flight, i.e. burnout cannot be detected
          And all 3 conditions are true for 25 readings in a row (ignores further transients)
@@ -104,7 +104,7 @@ void FlightLogicTask(void* pvParameters) {
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (millis() - flightStartTime > 250 && accelRaw.mag() < 3 && !canDetectBurnout)
+          if (millis() - flightStartTime > 500 && accelRaw.mag() < 3 && !canDetectBurnout)
             falseLaunchCtr++;
           else
             falseLaunchCtr = 0;
