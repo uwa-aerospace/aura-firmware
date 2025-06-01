@@ -54,8 +54,14 @@ extern float gnssLongitude;
 extern float gnssAltitudeMSL;
 extern float gnssAltitudeAGL;
 extern float gnssVertVel;
-extern float gnssPadAltitude;
+extern float gnssHozVel;
+extern uint8_t gnssNumSats;
 extern float gnssPDOP;
+extern float gnssAltAcc;
+extern float gnssVelAcc;
+
+// Non logged GNSS metrics
+extern float gnssPadAltitude;
 extern bool gnssValidReadings;
 extern bool gnssHasFix;
 

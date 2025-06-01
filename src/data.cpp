@@ -30,8 +30,14 @@ float gnssLongitude = 0;
 float gnssAltitudeMSL = 0;
 float gnssAltitudeAGL = 0;
 float gnssVertVel = 0;
-float gnssPadAltitude = 0;
+float gnssHozVel = 0;
+uint8_t gnssNumSats = 0;
 float gnssPDOP = 0;
+float gnssAltAcc = 0;
+float gnssVelAcc = 0;
+
+// Non logged GNSS metrics
+float gnssPadAltitude = 0;
 bool gnssValidReadings = false;
 bool gnssHasFix = false;
 

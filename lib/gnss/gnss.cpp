@@ -98,9 +98,14 @@ void GnssTask(void *pvParameters) {
           // Altitude and vert vel are measured in mm (mm/s)
           gnssAltitudeMSL = pvt.hMSL / 1000.0;
           gnssVertVel = (pvt.velD / 1000.0) * -1;
+          gnssHozVel = pvt.gSpeed / 1000.0;
 
+          gnssNumSats = pvt.numSV;
           gnssPDOP = pvt.pDOP / 100.0;
           gnssValidReadings = (gnssPDOP < 3);
+
+          gnssAltAcc = pvt.vAcc / 1000.0;
+          gnssVelAcc = pvt.sAcc / 1000.0;
 
           if (flightState == FLIGHT_ARMED && shouldCalGnss) {
             if (gnssSamplesCollected < gnssSamplesRequired) {
