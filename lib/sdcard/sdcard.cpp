@@ -78,6 +78,8 @@ void loggingTimerCallback(TimerHandle_t xTimer) {
   xSemaphoreGive(loggingSemaphore);
 }
 
+QueueHandle_t logQueue;
+
 SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3) {
   if (!SD_MMC.setPins(clk, cmd, d0, d1, d2, d3)) {
     ESP_LOGE(TAG, "Failed to change SD card pins");
@@ -131,6 +133,8 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
     pdTRUE, NULL,
     loggingTimerCallback
   );
+
+  logQueue = xQueueCreate(100, 350); // Max 350 bytes per log string
 
   ESP_LOGI(TAG, "SD card setup successful");
   return SETUP_OK;
@@ -193,7 +197,6 @@ bool firstLog = true;
 bool resetLogTimeAtLaunch = false;
 
 void LoggingTask(void* pvParameters) {
-  openLogFile(SD_MMC, filePath);
   while (1) {
     while (xSemaphoreTake(loggingSemaphore, portMAX_DELAY) != pdTRUE) {}
 
@@ -296,14 +299,24 @@ void LoggingTask(void* pvParameters) {
     dataString[strPosn] = '\n'; strPosn++;
     dataString[strPosn] = '\0';
 
-    appendToOpenFile(dataString);
+    xQueueSend(logQueue, dataString, 0);
     strPosn = 0;
+  }
+}
 
-    if (numLogs > 4000) { // Save to file every ~10 seconds
-      flushLogFile();
-      numLogs = 0;
+void SDWriteTask(void* pvParameters) {
+  char lineToWrite[1024];
+  openLogFile(SD_MMC, filePath);
+  while (1) {
+    if (xQueueReceive(logQueue, lineToWrite, portMAX_DELAY) == pdTRUE) {
+      appendToOpenFile(lineToWrite);
+
+      if (numLogs >= 4000) {
+        flushLogFile();
+        numLogs = 0;
+      }
+
+      numLogs++;
     }
-    
-    numLogs++;
   }
 }

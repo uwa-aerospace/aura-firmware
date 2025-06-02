@@ -48,6 +48,7 @@ TaskHandle_t BarometerTaskHandle;
 #define SDIO_D2 17
 #define SDIO_D3 14
 TaskHandle_t LoggingTaskHandle;
+TaskHandle_t SDWriteTaskHandle;
 
 #define SPI_SCK 2
 #define SPI_MISO 4
@@ -145,6 +146,7 @@ void setup() {
   xTaskCreate(RadioTask, "RadioTask", 4096, NULL, 2, NULL);
 
   xTaskCreatePinnedToCore(LoggingTask, "LoggingTask", 8192, NULL, 3, &LoggingTaskHandle, 1);
+  xTaskCreatePinnedToCore(SDWriteTask, "SDWriteTask", 4096, NULL, 3, &SDWriteTaskHandle, 1);
   xTaskCreatePinnedToCore(FlightLogicTask, "FlightLogicTask", 8192, NULL, 4, &FlightLogicTaskHandle, 1);
 }
 
