@@ -90,13 +90,13 @@ void FlightLogicTask(void* pvParameters) {
       case FLIGHT_BOOST: {
         /* Burnout is detected when:
          - Accel velocity has dropped 3m/s below the max accel velocity for 5 readings in a row
-         - Rocket velocity has exceeded 20m/s at any point in the flight
+         - Rocket velocity has exceeded 15m/s at any point in the flight
         */
 
         /* False launch is detected when:
          - Flight time is greater than 500ms (ignores initial motor noise transients)
-         - Vertical acceleration drops below 3G
-         - Rocket velocity has not exceeded 20m/s at any point in the flight, i.e. burnout cannot be detected
+         - Vertical acceleration drops below 2G
+         - Rocket velocity has not exceeded 15m/s at any point in the flight, i.e. burnout cannot be detected
          And all 3 conditions are true for 25 readings in a row (ignores further transients)
 
          If false launch is detected, reset IMU values and return to FLIGHT_ARMED state
@@ -109,7 +109,7 @@ void FlightLogicTask(void* pvParameters) {
           else
             falseLaunchCtr = 0;
 
-          if (maxAccelVertVel > 20)
+          if (maxAccelVertVel > 15)
             canDetectBurnout = true;
 
           float accelDelta = maxAccelVertVel - accelVertVel;
