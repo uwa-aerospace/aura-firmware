@@ -60,12 +60,12 @@ void FlightLogicTask(void* pvParameters) {
       } break;
       case FLIGHT_ARMED: {
         /* Launch is detected when:
-         - Accel-based vertical velocity is > 5m/s AND total acceleration > 3G for 5 readings in a row
+         - Accel-based vertical velocity is > 5m/s AND vertical acceleration > 3G for 5 readings in a row
         */
 
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (accelVertVel > 5 && accelRaw.mag() > 3)
+          if (accelVertVel > 5 && accelCorrected.z > 3)
             accelLaunchCtr++;
           else // Reset counter if condition is no longer true (counters transients)
             accelLaunchCtr = 0;
@@ -95,7 +95,7 @@ void FlightLogicTask(void* pvParameters) {
 
         /* False launch is detected when:
          - Flight time is greater than 500ms (ignores initial motor noise transients)
-         - Acceleration drops below 3G
+         - Vertical acceleration drops below 3G
          - Rocket velocity has not exceeded 20m/s at any point in the flight, i.e. burnout cannot be detected
          And all 3 conditions are true for 25 readings in a row (ignores further transients)
 
@@ -104,7 +104,7 @@ void FlightLogicTask(void* pvParameters) {
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (millis() - flightStartTime > 500 && accelRaw.mag() < 3 && !canDetectBurnout)
+          if (millis() - flightStartTime > 500 && accelCorrected.z < 3 && !canDetectBurnout)
             falseLaunchCtr++;
           else
             falseLaunchCtr = 0;
