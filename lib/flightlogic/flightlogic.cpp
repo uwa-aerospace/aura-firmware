@@ -104,7 +104,7 @@ void FlightLogicTask(void* pvParameters) {
         
         // ONLY UPDATE IF NEW IMU DATA IS AVAILABLE
         if (bits & IMU_SENSOR_EVENT) {
-          if (millis() - flightStartTime > 500 && accelCorrected.z < 3 && !canDetectBurnout)
+          if (millis() - flightStartTime > 500 && accelCorrected.z < 2 && !canDetectBurnout)
             falseLaunchCtr++;
           else
             falseLaunchCtr = 0;
