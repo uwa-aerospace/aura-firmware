@@ -119,7 +119,7 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
 
   snprintf(filePath, sizeof(filePath), "%s%s.csv", logPath, logPath);
   
-  const char* header = "time,flightState,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,gyroX,gyroY,gyroZ,quatnW,quatnX,quatnY,quatnZ,rawAccX,rawAccY,rawAccZ,rawGyroX,rawGyroY,rawGyroZ,baroAltMSL,baroPres,lat,lon,gnssAltMSL,gnssPDOP,accLaunch,accBrOut,baroApo,gnssApo,accApo,gyroApo,baroMain,gnssMain,accLand,gyroLand,baroLand,gnssLand\n";
+  const char* header = "time,flightState,baroAltAGL,gnssAltAGL,accelVertVel,baroVertVel,gnssVertVel,tiltAng,accelX,accelY,accelZ,gyroX,gyroY,gyroZ,quatnW,quatnX,quatnY,quatnZ,rawAccX,rawAccY,rawAccZ,rawGyroX,rawGyroY,rawGyroZ,baroAltMSL,baroPres,baroRawAGL,kalmanBaroVel,lat,lon,gnssAltMSL,gnssHozVel,gnssNumSats,gnssPDOP,gnssAltAcc,gnssVelAcc,launch,falseLaunch,burnOut,baroApo,gnssApo,accApo,gyroApo,baroMain,gnssMain,gyroLand,baroLand,gnssLand\n";
   if (!writeFile(SD_MMC, filePath, header)) {
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
@@ -211,7 +211,7 @@ void LoggingTask(void* pvParameters) {
       resetLogTimeAtLaunch = true;
     }
 
-    writeFloatData(logTime, 2);
+    writeFloatData(logTime, 3);
     writeIntData(flightState);
 
     writeFloatData(baroAltitudeAGL, 2);
@@ -223,9 +223,9 @@ void LoggingTask(void* pvParameters) {
     
     writeFloatData(tiltAngle, 2);
 
-    writeFloatData(accelCorrected.x, 2);
-    writeFloatData(accelCorrected.y, 2);
-    writeFloatData(accelCorrected.z, 2);
+    writeFloatData(accelCorrected.x, 4);
+    writeFloatData(accelCorrected.y, 4);
+    writeFloatData(accelCorrected.z, 4);
 
     writeFloatData(gyroCorrected.x, 2);
     writeFloatData(gyroCorrected.y, 2);
@@ -236,9 +236,9 @@ void LoggingTask(void* pvParameters) {
     writeFloatData(attitudeQuatn.v.y, 5);
     writeFloatData(attitudeQuatn.v.z, 5);
 
-    writeFloatData(accelRaw.x, 2);
-    writeFloatData(accelRaw.y, 2);
-    writeFloatData(accelRaw.z, 2);
+    writeFloatData(accelRaw.x, 4);
+    writeFloatData(accelRaw.y, 4);
+    writeFloatData(accelRaw.z, 4);
 
     writeFloatData(gyroRaw.x, 2);
     writeFloatData(gyroRaw.y, 2);
@@ -247,19 +247,9 @@ void LoggingTask(void* pvParameters) {
     if (newBaroValues) {
       writeFloatData(baroAltitudeMSL, 2);
       writeIntData(baroPressure);
+      writeFloatData(rawAltitudeAGL, 2);
+      writeFloatData(kalmanBaroVel, 2);
       newBaroValues = false;
-    }
-    else {
-      dataString[strPosn] = ','; strPosn++;
-      dataString[strPosn] = ','; strPosn++;
-    }
-
-    if (newGnssValues) {
-      writeFloatData(gnssLatitude, 6);
-      writeFloatData(gnssLongitude, 6);
-      writeFloatData(gnssAltitudeMSL, 2);
-      writeFloatData(gnssPDOP, 2);
-      newGnssValues = false;
     }
     else {
       for (int i = 0; i < 4; i++) {
@@ -267,7 +257,26 @@ void LoggingTask(void* pvParameters) {
       }
     }
 
+    if (newGnssValues) {
+      writeFloatData(gnssLatitude, 6);
+      writeFloatData(gnssLongitude, 6);
+      writeFloatData(gnssAltitudeMSL, 2);
+      writeFloatData(gnssHozVel, 2);
+      writeIntData(gnssNumSats);
+      writeFloatData(gnssPDOP, 2);
+      writeFloatData(gnssAltAcc, 2);
+      writeFloatData(gnssVelAcc, 2);
+      newGnssValues = false;
+    }
+    else {
+      for (int i = 0; i < 8; i++) {
+        dataString[strPosn] = ','; strPosn++;
+      }
+    }
+
     writeIntData(accelLaunchCtr);
+
+    writeIntData(falseLaunchCtr);
 
     writeIntData(accelBurnoutCtr);
 
