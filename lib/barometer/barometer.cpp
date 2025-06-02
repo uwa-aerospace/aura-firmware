@@ -103,7 +103,7 @@ void BarometerTask(void *pvParameters) {
       baroVertVel = VEL_EMA_ALPHA * kalmanBaroVel + (1 - VEL_EMA_ALPHA) * baroVertVel;
 
       xEventGroupSetBits(sensorEventGroup, BARO_SENSOR_EVENT);
-      xEventGroupSetBits(loggingEventGroup, BARO_SENSOR_EVENT);
+      newBaroValues = true;
 
       // Only re-calibrate if launch has not been detected and will not be detected soon (i.e. < 1.5g)
       if (baroCalCount >= BARO_RECAL_THRESHOLD && flightState == FLIGHT_ARMED && accelRaw.mag() < CALIBRATION_APPLY_THRESHOLD) {

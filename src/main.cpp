@@ -72,7 +72,6 @@ TaskHandle_t FlightLogicTaskHandle;
 #define MEM_CS 3
 
 EventGroupHandle_t sensorEventGroup;
-EventGroupHandle_t loggingEventGroup;
 SemaphoreHandle_t spiMutex;
 
 void setup() {
@@ -123,8 +122,7 @@ void setup() {
   setupFlightLogic(MAIN_DEPLOY_ALT);
 
   sensorEventGroup = xEventGroupCreate();
-  loggingEventGroup = xEventGroupCreate();
-  if (sensorEventGroup == NULL || loggingEventGroup == NULL) {
+  if (sensorEventGroup == NULL) {
     ESP_LOGE(SETUP_TAG, "Could not initialize logging/sensor event groups");
     setupStatus = SDCARD_ERROR;
   }

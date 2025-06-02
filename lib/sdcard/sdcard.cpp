@@ -71,6 +71,13 @@ void incrementLogPath(char* logPath) {
 char logPath[sizeof(BASE_DIR_NAME) + 4] = BASE_DIR_NAME "0000";
 char filePath[2 * sizeof(logPath) + 3];
 
+TimerHandle_t loggingTimer;
+SemaphoreHandle_t loggingSemaphore;
+
+void loggingTimerCallback(TimerHandle_t xTimer) {
+  xSemaphoreGive(loggingSemaphore);
+}
+
 SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3) {
   if (!SD_MMC.setPins(clk, cmd, d0, d1, d2, d3)) {
     ESP_LOGE(TAG, "Failed to change SD card pins");
@@ -117,6 +124,13 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
     ESP_LOGE(TAG, "Could not create log file");
     return SDCARD_ERROR;
   }
+
+  loggingTimer = xTimerCreate(
+    "LoggingTimer",
+    pdMS_TO_TICKS(LOGGING_RATE), // 500 Hz
+    pdTRUE, NULL,
+    loggingTimerCallback
+  );
 
   ESP_LOGI(TAG, "SD card setup successful");
   return SETUP_OK;
@@ -181,13 +195,7 @@ bool resetLogTimeAtLaunch = false;
 void LoggingTask(void* pvParameters) {
   openLogFile(SD_MMC, filePath);
   while (1) {
-    EventBits_t bits = xEventGroupWaitBits(
-      loggingEventGroup,
-      IMU_SENSOR_EVENT | BARO_SENSOR_EVENT | GNSS_SENSOR_EVENT,
-      pdTRUE,
-      pdFALSE,
-      portMAX_DELAY
-    );
+    while (xSemaphoreTake(loggingSemaphore, portMAX_DELAY) != pdTRUE) {}
 
     if (flightState == FLIGHT_IDLE) continue; // Do not log during idle to save resources
 
@@ -236,20 +244,22 @@ void LoggingTask(void* pvParameters) {
     writeFloatData(gyroRaw.y, 2);
     writeFloatData(gyroRaw.z, 2);
 
-    if (bits & BARO_SENSOR_EVENT) {
+    if (newBaroValues) {
       writeFloatData(baroAltitudeMSL, 2);
       writeIntData(baroPressure);
+      newBaroValues = false;
     }
     else {
       dataString[strPosn] = ','; strPosn++;
       dataString[strPosn] = ','; strPosn++;
     }
 
-    if (bits & GNSS_SENSOR_EVENT) {
+    if (newGnssValues) {
       writeFloatData(gnssLatitude, 6);
       writeFloatData(gnssLongitude, 6);
       writeFloatData(gnssAltitudeMSL, 2);
       writeFloatData(gnssPDOP, 2);
+      newGnssValues = false;
     }
     else {
       for (int i = 0; i < 4; i++) {

@@ -20,8 +20,10 @@ extern FlightState flightState;
 #define GNSS_SENSOR_EVENT (1 << 2)
 
 extern EventGroupHandle_t sensorEventGroup;
-extern EventGroupHandle_t loggingEventGroup;
 extern SemaphoreHandle_t spiMutex;
+
+extern bool newGnssValues;
+extern bool newBaroValues;
 
 extern bool accelCalibrationCycle;
 extern bool baroCalibrationCycle;

@@ -2,6 +2,9 @@
 
 FlightState flightState = FLIGHT_IDLE;
 
+bool newGnssValues = false;
+bool newBaroValues = false;
+
 bool accelCalibrationCycle = false;
 bool baroCalibrationCycle = false;
 bool gnssCalibrationCycle = false;
