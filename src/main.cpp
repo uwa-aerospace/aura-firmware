@@ -71,6 +71,7 @@ TaskHandle_t FlightLogicTaskHandle;
 
 #define BUZZER_PIN 45
 #define PROGRAMMABLE_LED 46
+#define CAMERA_CONTROL 39
 #define MEM_CS 3
 
 EventGroupHandle_t sensorEventGroup;
@@ -94,6 +95,7 @@ void setup() {
 
   prefs.begin("aura-settings", false);
   int radioFreq = prefs.getInt("radioFreq", 9190);
+  pinMode(CAMERA_CONTROL, OUTPUT);
   
   SetupStatus setupStatus = SETUP_OK;
 

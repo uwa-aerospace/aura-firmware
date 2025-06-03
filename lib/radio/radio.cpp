@@ -28,6 +28,7 @@
 #define DISARM_CMD "DISARM8MkEewq7"
 #define FIRE_PYRO_CMD "FIRE8MkEewq7"
 #define RADIO_FREQ_CMD "FREQ8MkEewq7"
+#define CAM_CTL_CMD "CAMCTL8MkEewq7"
 
 hw_config hwConfig;
 EventGroupHandle_t radioEventGroup;
@@ -252,6 +253,9 @@ void processRadioCommands(char* command, int data) {
   else if (strcmp(command, RADIO_FREQ_CMD) == 0 && data >= 9020 && data <= 9280) {
     Radio.SetChannel(data * 1e5);
     prefs.putInt("radioFreq", data);
+  }
+  else if (strcmp(command, CAM_CTL_CMD) == 0 && data >= 0 && data <= 1) {
+    digitalWrite(39, data);
   }
 }
 
