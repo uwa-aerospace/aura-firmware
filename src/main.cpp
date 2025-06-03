@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "SPI.h"
+#include <Preferences.h>
 
 #include <WiFi.h>
 #include "esp_bt.h"
@@ -30,7 +31,6 @@
 
 // IMPORTANT SETTINGS
 #define MAIN_DEPLOY_ALT 300 // in M
-#define RADIO_FREQ 919000000 // in Hz
 
 // Pin and MCU function declarations
 #define GNSS_RX_PIN 21
@@ -74,6 +74,7 @@ TaskHandle_t FlightLogicTaskHandle;
 
 EventGroupHandle_t sensorEventGroup;
 SemaphoreHandle_t spiMutex;
+Preferences prefs;
 
 void setup() {
   Serial.begin(460800);
@@ -90,6 +91,9 @@ void setup() {
   // Disable WDT to prevent the possibility of in flight restarts
   esp_task_wdt_deinit();
 
+  prefs.begin("aura-settings", false);
+  int radioFreq = prefs.getInt("radioFreq", 9190);
+  
   SetupStatus setupStatus = SETUP_OK;
 
   // Reset all SPI CS pins to prevent multi-access
@@ -110,7 +114,7 @@ void setup() {
 
   spiMutex = xSemaphoreCreateMutex();
   if (spiMutex != NULL) {
-    setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY, RADIO_FREQ));
+    setupStatus = static_cast<SetupStatus>(setupStatus | setupRadio(SPI_SCK, SPI_MISO, SPI_MOSI, RADIO_CS, RADIO_INT, RADIO_BUSY, radioFreq));
     setupStatus = static_cast<SetupStatus>(setupStatus | setupAccelerometer(ACCEL_CS, ACCEL_INT));
   }
   else {

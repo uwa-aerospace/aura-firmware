@@ -25,6 +25,7 @@
 #define ARM_CMD "ARM8MkEewq7"
 #define DISARM_CMD "DISARM8MkEewq7"
 #define FIRE_PYRO_CMD "FIRE8MkEewq7"
+#define RADIO_FREQ_CMD "FREQ8MkEewq7"
 
 hw_config hwConfig;
 EventGroupHandle_t radioEventGroup;
@@ -54,7 +55,7 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
   hwConfig.USE_DIO2_ANT_SWITCH = true;
   hwConfig.USE_DIO3_TCXO = false;
   hwConfig.USE_LDO = true;
-  freq = freqHz;
+  freq = freqHz * 1e5;
 
   if (lora_hardware_init(hwConfig) != 0) {
     ESP_LOGE(TAG, "Radio init failed");
@@ -244,6 +245,11 @@ void processRadioCommands(char* command, int data) {
     longBeep();
     delay(1000);
     firePyro(data);
+  }
+  // Switch radio frequency on command
+  else if (strcmp(command, RADIO_FREQ_CMD) == 0 && data >= 9020 && data <= 9280) {
+    Radio.SetChannel(data * 1e5);
+    prefs.putInt("radioFreq", data);
   }
 }
 
