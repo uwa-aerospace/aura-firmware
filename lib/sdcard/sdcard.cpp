@@ -314,7 +314,6 @@ void SDWriteTask(void* pvParameters) {
       appendToOpenFile(lineToWrite);
 
       if (numLogs >= 4000) {
-        ESP_LOGI(TAG, "Flush file");
         flushLogFile();
         numLogs = 0;
       }
