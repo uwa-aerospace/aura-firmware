@@ -71,11 +71,13 @@ void incrementLogPath(char* logPath) {
 char logPath[sizeof(BASE_DIR_NAME) + 4] = BASE_DIR_NAME "0000";
 char filePath[2 * sizeof(logPath) + 3];
 
-TimerHandle_t loggingTimer;
+hw_timer_t* loggingTimer;
 SemaphoreHandle_t loggingSemaphore;
 
-void loggingTimerCallback(TimerHandle_t xTimer) {
-  xSemaphoreGive(loggingSemaphore);
+void IRAM_ATTR loggingTimerCallback() {
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  xSemaphoreGiveFromISR(loggingSemaphore, &xHigherPriorityTaskWoken);
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 QueueHandle_t logQueue;
@@ -127,14 +129,13 @@ SetupStatus setupSdCard(uint8_t cmd, uint8_t clk, uint8_t d0, uint8_t d1, uint8_
     return SDCARD_ERROR;
   }
 
-  loggingTimer = xTimerCreate(
-    "LoggingTimer",
-    pdMS_TO_TICKS(LOGGING_RATE), // 500 Hz
-    pdTRUE, NULL,
-    loggingTimerCallback
-  );
-
+  loggingSemaphore = xSemaphoreCreateBinary();
   logQueue = xQueueCreate(100, 350); // Max 350 bytes per log string
+
+  loggingTimer = timerBegin(1, 80, true);
+  timerAttachInterrupt(loggingTimer, &loggingTimerCallback, true);
+  timerAlarmWrite(loggingTimer, 2000, true);
+  timerAlarmEnable(loggingTimer);
 
   ESP_LOGI(TAG, "SD card setup successful");
   return SETUP_OK;
@@ -198,12 +199,13 @@ bool resetLogTimeAtLaunch = false;
 
 void LoggingTask(void* pvParameters) {
   while (1) {
-    while (xSemaphoreTake(loggingSemaphore, portMAX_DELAY) != pdTRUE) {}
+    xSemaphoreTake(loggingSemaphore, portMAX_DELAY);
 
     if (flightState == FLIGHT_IDLE) continue; // Do not log during idle to save resources
 
-    uint64_t now = millis();
-    float dt = (now - lastLogTime) * 1e-3;
+    uint64_t now = esp_timer_get_time();
+    float dt = (now - lastLogTime) * 1e-6;
+    // ESP_LOGI(TAG, "%.3f", dt);
     lastLogTime = now;
 
     if (dt < 250 && firstLog) firstLog = false;
@@ -312,6 +314,7 @@ void SDWriteTask(void* pvParameters) {
       appendToOpenFile(lineToWrite);
 
       if (numLogs >= 4000) {
+        ESP_LOGI(TAG, "Flush file");
         flushLogFile();
         numLogs = 0;
       }

@@ -1,6 +1,6 @@
 #include "data.h"
 
-FlightState flightState = FLIGHT_IDLE;
+FlightState flightState = FLIGHT_ARMED;
 
 bool newGnssValues = false;
 bool newBaroValues = false;

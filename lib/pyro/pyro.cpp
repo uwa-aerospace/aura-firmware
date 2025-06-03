@@ -1,17 +1,27 @@
-#include "pyro.h"
 #include <Arduino.h>
 
 uint8_t channels[4];
-hw_timer_t* timers[4];
+volatile uint16_t pyroTimers[4] = {0};
 volatile bool active[4] = {false};
+hw_timer_t* pyroTimer = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
-#define FIRE_DURATION_US 150000
+#define FIRE_DURATION_MS 150
 #define TIMER_PRESCALER 80
 
-void IRAM_ATTR onTimer0() { digitalWrite(channels[0], 0); active[0] = false; }
-void IRAM_ATTR onTimer1() { digitalWrite(channels[1], 0); active[1] = false; }
-void IRAM_ATTR onTimer2() { digitalWrite(channels[2], 0); active[2] = false; }
-void IRAM_ATTR onTimer3() { digitalWrite(channels[3], 0); active[3] = false; }
+void IRAM_ATTR onPyroTimer() {
+  portENTER_CRITICAL_ISR(&timerMux);
+  for (int i = 0; i < 4; i++) {
+    if (active[i] && pyroTimers[i] > 0) {
+      pyroTimers[i]--;
+      if (pyroTimers[i] == 0) {
+        digitalWrite(channels[i], 0);
+        active[i] = false;
+      }
+    }
+  }
+  portEXIT_CRITICAL_ISR(&timerMux);
+}
 
 void setupPyros(uint8_t c1, uint8_t c2, uint8_t c3, uint8_t c4) {
   channels[0] = c1;
@@ -24,25 +34,20 @@ void setupPyros(uint8_t c1, uint8_t c2, uint8_t c3, uint8_t c4) {
     digitalWrite(channels[i], 0);
   }
 
-  timers[0] = timerBegin(0, TIMER_PRESCALER, true);
-  timers[1] = timerBegin(1, TIMER_PRESCALER, true);
-  timers[2] = timerBegin(2, TIMER_PRESCALER, true);
-  timers[3] = timerBegin(3, TIMER_PRESCALER, true);
-
-  timerAttachInterrupt(timers[0], &onTimer0, 0);
-  timerAttachInterrupt(timers[1], &onTimer1, 0);
-  timerAttachInterrupt(timers[2], &onTimer2, 0);
-  timerAttachInterrupt(timers[3], &onTimer3, 0);
+  pyroTimer = timerBegin(0, TIMER_PRESCALER, true);
+  timerAttachInterrupt(pyroTimer, &onPyroTimer, true);
+  timerAlarmWrite(pyroTimer, 1000, true);
+  timerAlarmEnable(pyroTimer);
 }
 
-// 0 INDEXED
 void firePyro(uint8_t channel) {
-  if (channel > 3 || active[channel]) return;
+  if (channel > 3) return;
 
-  digitalWrite(channels[channel], 1);
-  active[channel] = true;
-
-  timerRestart(timers[channel]);
-  timerAlarmWrite(timers[channel], FIRE_DURATION_US, false);
-  timerAlarmEnable(timers[channel]);
+  portENTER_CRITICAL(&timerMux);
+  if (!active[channel]) {
+    digitalWrite(channels[channel], 1);
+    pyroTimers[channel] = FIRE_DURATION_MS;
+    active[channel] = true;
+  }
+  portEXIT_CRITICAL(&timerMux);
 }

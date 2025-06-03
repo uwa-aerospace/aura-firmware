@@ -109,7 +109,6 @@ void setup() {
   SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
   SPI.setFrequency(10000000);
 
-  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
   setupStatus = static_cast<SetupStatus>(setupStatus | setupBarometer(I2C_SDA, I2C_SCL));
   setupStatus = static_cast<SetupStatus>(setupStatus | setupSdCard(SDIO_CMD, SDIO_CLK, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3));
 
@@ -121,6 +120,8 @@ void setup() {
   else {
     setupStatus = static_cast<SetupStatus>(setupStatus | RADIO_ERROR | ACCEL_ERROR);
   }
+
+  setupStatus = static_cast<SetupStatus>(setupStatus | setupGNSS(Serial2));
 
   // No status checks required because they will generally always succeed
   setupPyros(PYRO1, PYRO2, PYRO3, PYRO4);
