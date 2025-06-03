@@ -1,6 +1,7 @@
+#include <BLEDevice.h>
+#include "ble.h"
 #include "radio.h"
 #include "SX126x-Arduino.h"
-#include "buzzer.h"
 
 #define TAG "RADIO"
 
@@ -17,11 +18,6 @@
 #define LORA_IQ_INVERSION false
 #define RX_TIMEOUT_VALUE 3000
 #define TX_TIMEOUT_VALUE 3000
-
-#define ARM_CMD "ARM8MkEewq7"
-#define DISARM_CMD "DISARM8MkEewq7"
-#define FIRE_PYRO_CMD "FIRE8MkEewq7"
-#define RADIO_FREQ_CMD "FREQ8MkEewq7"
 
 hw_config hwConfig;
 SemaphoreHandle_t rxDoneSemaphore;
@@ -107,6 +103,8 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
 static char receiveBuff[255];
 static int16_t lastRssi;
 static int8_t lastSnr;
+static unsigned long lastReceive = 0;
+
 void OnRxDone(uint8_t* payload, uint16_t size, int16_t rssi, int8_t snr) {
   memcpy(receiveBuff, payload, size);
   receiveBuff[size] = '\0';
@@ -128,5 +126,22 @@ void RadioTask(void *pvParameters) {
     xSemaphoreTake(rxDoneSemaphore, portMAX_DELAY);
 
     // TODO
+    unsigned long now = millis();
+    int delta = now - lastReceive;
+    lastReceive = now;
+
+    char telemetryStr[256];
+    snprintf(telemetryStr, sizeof(telemetryStr), "%s,%d,%d,%d,%d\n", receiveBuff, lastRssi, lastSnr, lastRssi, delta);
+    pTelemetryChar->setValue(telemetryStr);
+    pTelemetryChar->notify();
+
+    char command[50];
+    if (xQueueReceive(commandQueue, (void *)command, 0) == pdTRUE) {
+      Radio.Send((uint8_t *) command, strlen(command));
+
+      if (xSemaphoreTake(txDoneSemaphore, portMAX_DELAY) == pdTRUE) {
+        Radio.RxBoosted(0);
+      }
+    }
   }
 }

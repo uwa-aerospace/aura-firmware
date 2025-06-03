@@ -2,12 +2,6 @@
 #include "SPI.h"
 #include <Preferences.h>
 
-#include <WiFi.h>
-#include "esp_bt.h"
-#include "esp_wifi.h"
-#include "esp_log.h"
-#include "esp_task_wdt.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -17,8 +11,9 @@
 #include "data.h"
 
 // Flight computer peripherals
-#include "buzzer.h"
+#include "ble.h"
 #include "radio.h"
+#include "buzzer.h"
 
 // General defines
 #define SETUP_TAG "MAINSETUP"
@@ -69,6 +64,7 @@ void setup() {
 
   // No status checks required because they will generally always succeed
   setupBuzzer(BUZZER_PIN);
+  setupBLE();
 
   if (setupStatus != SETUP_OK) {
     ESP_LOGE(SETUP_TAG, "%d", setupStatus);
