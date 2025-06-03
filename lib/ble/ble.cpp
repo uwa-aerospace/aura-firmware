@@ -1,4 +1,6 @@
+#include <Preferences.h>
 #include "ble.h"
+#include "prefs.h"
 #include "radio.h"
 
 BLECharacteristic *pTelemetryChar;
@@ -31,7 +33,12 @@ class BLEReceiveCallback : public BLECharacteristicCallbacks {
     }
     else if (value.rfind("FREQ,", 0) == 0) {
       int frequency = std::stoi(value.substr(5, 4));
+      prefs.putInt("radioFreq", frequency);
       command = RADIO_FREQ_CMD + ("," + std::to_string(frequency));
+    }
+    else if (value.rfind("CAMCTL,", 0) == 0) {
+      int state = std::stoi(value.substr(5));
+      command = CAM_CTL_CMD + ("," + std::to_string(state));
     }
 
     if (!command.empty()) {

@@ -126,7 +126,7 @@ void OnTxDone(void) {
 void RadioTask(void *pvParameters) {
   while (1) {
     xSemaphoreTake(rxDoneSemaphore, portMAX_DELAY);
-    // TODO
+
     unsigned long now = millis();
     int delta = now - lastReceive;
     lastReceive = now;
@@ -141,6 +141,11 @@ void RadioTask(void *pvParameters) {
       Radio.Send((uint8_t *) command, strlen(command));
 
       if (xSemaphoreTake(txDoneSemaphore, portMAX_DELAY) == pdTRUE) {
+        if (strncmp(command, RADIO_FREQ_CMD, strlen(RADIO_FREQ_CMD)) == 0) {
+          int frequency = prefs.getInt("radioFreq", 9190) * 1e5;
+          Radio.SetChannel(frequency);
+        }
+
         Radio.RxBoosted(0);
       }
     }
