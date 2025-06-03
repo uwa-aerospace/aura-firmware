@@ -1,10 +1,6 @@
 #include "radio.h"
 #include "SX126x-Arduino.h"
-#include "pyro.h"
 #include "buzzer.h"
-
-#include "data.h"
-#include "vector_type.h"
 
 #define TAG "RADIO"
 
@@ -28,15 +24,9 @@
 #define RADIO_FREQ_CMD "FREQ8MkEewq7"
 
 hw_config hwConfig;
-EventGroupHandle_t radioEventGroup;
+SemaphoreHandle_t rxDoneSemaphore;
 SemaphoreHandle_t txDoneSemaphore;
 TimerHandle_t radioTransmitTimer;
-
-void transmitTimerCallback(TimerHandle_t xTimer) {
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-  xEventGroupSetBitsFromISR(radioEventGroup, TRANSMIT_BIT, &xHigherPriorityTaskWoken);
-  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
 
 void OnTxDone(void);
 void OnRxDone(uint8_t* payload, uint16_t size, int16_t rssi, int8_t snr);
@@ -62,15 +52,8 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
     return RADIO_ERROR;
   }
 
-  radioEventGroup = xEventGroupCreate();
+  rxDoneSemaphore = xSemaphoreCreateBinary();
   txDoneSemaphore = xSemaphoreCreateBinary();
-  radioTransmitTimer = xTimerCreate(
-    "RadioTxTimer",
-    pdMS_TO_TICKS(RADIO_IDLE_TX_RATE),
-    pdTRUE, NULL,
-    transmitTimerCallback
-  );
-  xTimerStart(radioTransmitTimer, 0);
 
   // 4. Register callbacks and initialize radio
   static RadioEvents_t events;
@@ -130,157 +113,20 @@ void OnRxDone(uint8_t* payload, uint16_t size, int16_t rssi, int8_t snr) {
   lastRssi = rssi;
   lastSnr = snr;
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-  xEventGroupSetBitsFromISR(radioEventGroup, RECEIVE_BIT, &xHigherPriorityTaskWoken);
+  xSemaphoreGiveFromISR(rxDoneSemaphore, &xHigherPriorityTaskWoken);
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-char transmitBuf[255];
-int txBufStrPos;
-const uint8_t base = 10;
-const char cs = ',';
 void OnTxDone(void) {
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
   xSemaphoreGiveFromISR(txDoneSemaphore, &xHigherPriorityTaskWoken);
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
-void writeIntDataRadioStr(int dataValue) {
-  itoa(dataValue, transmitBuf + txBufStrPos, base);
-  while(transmitBuf[txBufStrPos]!= '\0'){txBufStrPos++;}
-  transmitBuf[txBufStrPos] = cs;
-  txBufStrPos++;
-}
-
-void writeFloatDataRadioStr(float dataValue, byte decimals){
-  long fracInt;
-  float partial;
-
-  //sign portion
-  if (dataValue < 0) {
-    transmitBuf[txBufStrPos] = '-'; 
-    txBufStrPos++;
-    dataValue *= -1;
-  }
-  
-  //integer portion
-  itoa((int)dataValue, transmitBuf + txBufStrPos, base);
-  while(transmitBuf[txBufStrPos]!= '\0'){ txBufStrPos++; }
-  transmitBuf[txBufStrPos]='.'; txBufStrPos++;
-  
-  //fractional portion
-  partial = dataValue - (int)(dataValue);
-  fracInt = (long)(partial*powf(10,decimals));
-  if (fracInt == 0) {
-    transmitBuf[txBufStrPos] = '0'; 
-    txBufStrPos++; 
-    transmitBuf[txBufStrPos] = cs; 
-    txBufStrPos++;
-  }
-  else {
-    decimals--;
-    while(fracInt < powf(10, decimals)){ 
-      transmitBuf[txBufStrPos]='0';
-      txBufStrPos++;
-      decimals--; 
-    }
-    ltoa(fracInt, transmitBuf + txBufStrPos, base);
-    while(transmitBuf[txBufStrPos]!= '\0'){ txBufStrPos++; }
-    transmitBuf[txBufStrPos]=','; txBufStrPos++;
-  }
-}
-
-// RADIO TO SEND
-// 500 MS (2 HZ) ON THE GROUND: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon, accelXYZ, gyroXYZ
-// 67 MS (15HZ) IN THE AIR: flightState, baroAlt, gnssAlt, accelVel, gnssVel, baroVel, tiltAng, lat, lon
-void buildDataString() {
-  // Write all data (except lat/lon) as ints to save payload space
-  writeIntDataRadioStr(flightState);
-        
-  writeIntDataRadioStr((int) baroAltitudeAGL);
-  writeIntDataRadioStr((int) gnssAltitudeAGL);
-
-  writeIntDataRadioStr((int) accelVertVel);
-  writeIntDataRadioStr((int) baroVertVel);
-  writeIntDataRadioStr((int) gnssVertVel);
-  writeIntDataRadioStr((int) tiltAngle);
-
-  // 5 dp lat/lon is sufficient precision
-  writeFloatDataRadioStr(gnssLatitude, 5);
-  writeFloatDataRadioStr(gnssLongitude, 5);
-
-  // Send accel and gyro XYZ values when not launched for debugging/validation
-  if (flightState == FLIGHT_ARMED) {
-    writeFloatDataRadioStr(accelCorrected.x, 2);
-    writeFloatDataRadioStr(accelCorrected.y, 2);
-    writeFloatDataRadioStr(accelCorrected.z, 2);
-    writeFloatDataRadioStr(gyroCorrected.x, 2);
-    writeFloatDataRadioStr(gyroCorrected.y, 2);
-    writeFloatDataRadioStr(gyroCorrected.z, 2);
-  }
-  txBufStrPos--;
-  transmitBuf[txBufStrPos] = '\0';
-}
-
-void processRadioCommands(char* command, int data) {
-  if (flightState > FLIGHT_ARMED) return; // No more commands accepted after launch detected
-
-  if (strcmp(command, ARM_CMD) == 0) {
-    shortBeepXTimes(3);
-    
-    delay(1000);
-    xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_ARMED_TX_RATE), 0);
-
-    accelVertVel = 0;
-    attitudeQuatn = quat_t(1,0,0,0);
-
-    flightState = FLIGHT_ARMED;
-  }
-  else if (strcmp(command, DISARM_CMD) == 0) {
-    shortBeepXTimes(3);
-    xTimerChangePeriod(radioTransmitTimer, pdMS_TO_TICKS(RADIO_IDLE_TX_RATE), 0);
-    flightState = FLIGHT_IDLE;
-  }
-  // Do not fire pyros when system is ARMED, could cause launch detection
-  else if (strcmp(command, FIRE_PYRO_CMD) == 0 && data >= 0 && data <= 3 && flightState == FLIGHT_IDLE) {
-    longBeep();
-    delay(1000);
-    firePyro(data);
-  }
-  // Switch radio frequency on command
-  else if (strcmp(command, RADIO_FREQ_CMD) == 0 && data >= 9020 && data <= 9280) {
-    Radio.SetChannel(data * 1e5);
-    prefs.putInt("radioFreq", data);
-  }
-}
-
 void RadioTask(void *pvParameters) {
   while (1) {
-    EventBits_t bits = xEventGroupWaitBits(
-      radioEventGroup,
-      TRANSMIT_BIT | RECEIVE_BIT,
-      pdTRUE,
-      pdFALSE,
-      portMAX_DELAY
-    );
+    xSemaphoreTake(rxDoneSemaphore, portMAX_DELAY);
 
-    if (bits & TRANSMIT_BIT) {
-      buildDataString();
-
-      Radio.Send((uint8_t*) transmitBuf, strlen(transmitBuf));
-
-      if (xSemaphoreTake(txDoneSemaphore, portMAX_DELAY) == pdTRUE) {
-        Radio.RxBoosted(0);
-        txBufStrPos = 0;
-      }
-    }
-
-    if (bits & RECEIVE_BIT) {
-      char command[64] = {0};
-      int number = -1;
-      sscanf(receiveBuff, "%64[^,],%d", command, &number);
-      processRadioCommands(command, number);
-      
-      Radio.RxBoosted(0);
-    }
+    // TODO
   }
 }

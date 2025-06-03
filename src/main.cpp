@@ -14,6 +14,7 @@
 
 // Constants
 #include "status.h"
+#include "data.h"
 
 // Flight computer peripherals
 #include "buzzer.h"
@@ -36,7 +37,6 @@
 #define MEM_CS 3
 #define ACCEL_CS 0
 
-EventGroupHandle_t sensorEventGroup;
 SemaphoreHandle_t spiMutex;
 Preferences prefs;
 
@@ -69,12 +69,6 @@ void setup() {
 
   // No status checks required because they will generally always succeed
   setupBuzzer(BUZZER_PIN);
-
-  sensorEventGroup = xEventGroupCreate();
-  if (sensorEventGroup == NULL) {
-    ESP_LOGE(SETUP_TAG, "Could not initialize logging/sensor event groups");
-    setupStatus = SDCARD_ERROR;
-  }
 
   if (setupStatus != SETUP_OK) {
     ESP_LOGE(SETUP_TAG, "%d", setupStatus);
