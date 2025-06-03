@@ -33,7 +33,7 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
   }
 
   barometer.reset(1);
-  barometer.setOversampling(OSR_HIGH);
+  barometer.setOversampling(OSR_STANDARD);
 
   baroReadSemaphore = xSemaphoreCreateBinary();
   if (baroReadSemaphore == NULL) {
@@ -41,7 +41,7 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
     return BAROMETER_ERROR;
   }
 
-  baroReadTimer = xTimerCreate("BaroReadTimer", pdMS_TO_TICKS(BARO_READ_RATE), pdTRUE, (void*)0, baroTimerCallback);
+  baroReadTimer = xTimerCreate("BaroReadTimer", pdMS_TO_TICKS(BARO_READ_RATE), pdTRUE, NULL, baroTimerCallback);
   if (baroReadTimer == NULL) {
     ESP_LOGE(TAG, "Failed to create barometer read timer");
     return BAROMETER_ERROR;
