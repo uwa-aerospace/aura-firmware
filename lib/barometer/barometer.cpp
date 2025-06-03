@@ -8,14 +8,14 @@
 
 #define TAG "BAROMETER"
 
-#define BARO_READ_RATE 10
+#define BARO_READ_RATE 20
 
 MS5611 barometer;
 
 Kalman2D kfBaro;
 #define BARO_MEAS_ERR 0.008
 #define PROCESS_VAR   1
-#define MEAS_DT       0.01
+#define MEAS_DT       0.02
 #define VEL_EMA_ALPHA 0.15
 
 TimerHandle_t baroReadTimer;
@@ -33,7 +33,7 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
   }
 
   barometer.reset(1);
-  barometer.setOversampling(OSR_STANDARD);
+  barometer.setOversampling(OSR_HIGH);
 
   baroReadSemaphore = xSemaphoreCreateBinary();
   if (baroReadSemaphore == NULL) {
@@ -55,14 +55,14 @@ SetupStatus setupBarometer(uint8_t sdaPin, uint8_t sclPin) {
   return SETUP_OK;
 }
 
-uint16_t baroSamplesRequired = 200;
+uint16_t baroSamplesRequired = 100;
 uint16_t baroSamplesCollected = 0;
 float padAltitudeSum = 0;
 
 bool shouldCalBaro = true;
 bool baroInitialCalibration = false;
 uint32_t baroCalCount = 0;
-#define BARO_RECAL_THRESHOLD 500 // Recalibrate every 5 seconds whilst armed on the pad
+#define BARO_RECAL_THRESHOLD 250 // Recalibrate every 5 seconds whilst armed on the pad
 
 void BarometerTask(void *pvParameters) {
   while (1) {
@@ -115,6 +115,12 @@ void BarometerTask(void *pvParameters) {
 
       if (flightState == FLIGHT_ARMED && !shouldCalBaro) baroCalCount++;
 
+      // static uint64_t lastRead = millis();
+      // uint64_t now = millis();
+      // int dt = now-lastRead;
+      // lastRead = now;
+
+      // ESP_LOGI(TAG, "%d", dt);
       // printf(">RAGL:%.2f\n>KAGL:%.2f\n>KVEL:%.2f\n>SVEL:%.2f\n", rawAltitudeAGL, baroAltitudeAGL, kalmanBaroVel, baroVertVel);
     }
   }

@@ -203,12 +203,11 @@ void LoggingTask(void* pvParameters) {
 
     if (flightState == FLIGHT_IDLE) continue; // Do not log during idle to save resources
 
-    uint64_t now = esp_timer_get_time();
-    float dt = (now - lastLogTime) * 1e-6;
-    // ESP_LOGI(TAG, "%.3f", dt);
+    uint64_t now = millis();
+    float dt = (now - lastLogTime) * 1e-3;
     lastLogTime = now;
 
-    if (dt < 250 && firstLog) firstLog = false;
+    if (dt < 0.250 && firstLog) firstLog = false;
     if (!firstLog) logTime += dt;
 
     if (flightState > FLIGHT_ARMED && !resetLogTimeAtLaunch) {
