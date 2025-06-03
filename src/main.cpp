@@ -15,6 +15,7 @@
 // Constants
 #include "status.h"
 #include "data.h"
+#include "prefs.h"
 
 // Flight computer peripherals
 #include "gnss.h"

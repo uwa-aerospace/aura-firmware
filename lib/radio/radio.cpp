@@ -1,9 +1,11 @@
-#include "radio.h"
+#include <Preferences.h>
 #include "SX126x-Arduino.h"
+
+#include "radio.h"
 #include "pyro.h"
 #include "buzzer.h"
-
 #include "data.h"
+#include "prefs.h"
 #include "vector_type.h"
 
 #define TAG "RADIO"

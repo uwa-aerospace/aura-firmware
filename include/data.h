@@ -13,7 +13,6 @@ enum FlightState {
     FLIGHT_MAIN     = 5,
 };
 extern FlightState flightState;
-extern Preferences prefs;
 
 #define IMU_SENSOR_EVENT  (1 << 0)
 #define BARO_SENSOR_EVENT (1 << 1)
