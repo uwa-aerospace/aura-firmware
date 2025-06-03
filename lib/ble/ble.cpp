@@ -2,6 +2,7 @@
 #include "ble.h"
 #include "prefs.h"
 #include "radio.h"
+#include "buzzer.h"
 
 BLECharacteristic *pTelemetryChar;
 BLECharacteristic *pCommandChar;
@@ -42,6 +43,7 @@ class BLEReceiveCallback : public BLECharacteristicCallbacks {
     }
 
     if (!command.empty()) {
+      shortBeep();
       char commandCharArray[MAX_MSG_LEN] = {0};
       strncpy(commandCharArray, command.c_str(), MAX_MSG_LEN - 1);
       xQueueSend(commandQueue, (void*) commandCharArray, 0);
