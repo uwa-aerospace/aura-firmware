@@ -4,6 +4,8 @@
 #include "vector_type.h"
 #include "quaternion_type.h"
 
+#define CAMERA_CONTROL 15
+
 enum FlightState {
     FLIGHT_IDLE     = 0,
     FLIGHT_ARMED    = 1,

@@ -71,7 +71,6 @@ TaskHandle_t FlightLogicTaskHandle;
 
 #define BUZZER_PIN 45
 #define PROGRAMMABLE_LED 46
-#define CAMERA_CONTROL 39
 #define MEM_CS 3
 
 EventGroupHandle_t sensorEventGroup;

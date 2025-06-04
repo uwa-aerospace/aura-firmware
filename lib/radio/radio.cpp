@@ -255,7 +255,7 @@ void processRadioCommands(char* command, int data) {
     prefs.putInt("radioFreq", data);
   }
   else if (strcmp(command, CAM_CTL_CMD) == 0 && data >= 0 && data <= 1) {
-    digitalWrite(39, data);
+    digitalWrite(CAMERA_CONTROL, data);
   }
 }
 
