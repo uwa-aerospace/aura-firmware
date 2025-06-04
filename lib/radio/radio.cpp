@@ -4,6 +4,7 @@
 #include "prefs.h"
 #include "radio.h"
 #include "SX126x-Arduino.h"
+#include "buzzer.h"
 
 #define TAG "RADIO"
 
@@ -138,6 +139,7 @@ void RadioTask(void *pvParameters) {
 
     char command[50];
     if (xQueueReceive(commandQueue, (void *)command, 0) == pdTRUE) {
+      shortBeep();
       Radio.Send((uint8_t *) command, strlen(command));
 
       if (xSemaphoreTake(txDoneSemaphore, portMAX_DELAY) == pdTRUE) {
