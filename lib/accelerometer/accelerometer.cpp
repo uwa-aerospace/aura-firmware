@@ -7,7 +7,6 @@
 #include "data.h"
 #include "vector_type.h"
 #include "quaternion_type.h"
-#include "SimpleKalmanFilter.h"
 
 #define TAG "ACCELEROMETER"
 #define GRAVITY_ACCEL 9.80665
@@ -45,13 +44,6 @@ void IRAM_ATTR accelInterrupt(void) {
 }
 
 stmdev_ctx_t dev_ctx;
-
-float accMeasErr = 6.76 * 1e-4;
-float processVar = 0.001;
-
-SimpleKalmanFilter kfAccX(accMeasErr, accMeasErr, processVar);
-SimpleKalmanFilter kfAccY(accMeasErr, accMeasErr, processVar);
-SimpleKalmanFilter kfAccZ(accMeasErr, accMeasErr, processVar);
 
 SetupStatus setupAccelerometer(uint8_t cs, uint8_t interrupt) {
   accelCsPin = cs;
@@ -104,8 +96,6 @@ SetupStatus setupAccelerometer(uint8_t cs, uint8_t interrupt) {
 int16_t accel_unprocessed[3];
 int16_t gyro_unprocessed[3];
 
-vec3_t accelFiltered(0,0,0);
-
 vec3_t accelCalibrationSums(0,0,0);
 vec3_t gyroCalibrationSums(0,0,0);
 uint16_t samplesRequired = 832;
@@ -118,6 +108,7 @@ uint16_t samplesCollected = 0;
 quat_t gravityRotQuatn;
 vec3_t gyroBiases(0,0,0);
 vec3_t gyroRadsPerSec;
+float accelGravityOffset = 0;
 
 bool shouldCal = true;
 bool initialCalibration = false;
@@ -152,6 +143,7 @@ void setGravityRotQuatn() {
   gravityRotQuatn = gravityRotQuatn.norm();
 
   accelCorrected = gravityRotQuatn.rotate(accelCalibrationSums, false);
+  accelGravityOffset = accelCorrected.z - 1.0f; // Determine sensor offset from gravity
 }
 
 uint64_t lastMeasurement;
@@ -170,10 +162,6 @@ void AccelerometerTask(void* pvParameters) {
       accelRaw.y = lsm6dsox_from_fs16_to_mg(accel_unprocessed[1]) * 1e-3;
       accelRaw.z = lsm6dsox_from_fs16_to_mg(accel_unprocessed[2]) * 1e-3;
 
-      accelFiltered.x = kfAccX.updateEstimate(accelRaw.x);
-      accelFiltered.y = kfAccY.updateEstimate(accelRaw.y);
-      accelFiltered.z = kfAccZ.updateEstimate(accelRaw.z);
-
       gyroRaw.x = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[0]) * 1e-3;
       gyroRaw.y = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[1]) * 1e-3;
       gyroRaw.z = lsm6dsox_from_fs2000_to_mdps(gyro_unprocessed[2]) * 1e-3;
@@ -182,7 +170,7 @@ void AccelerometerTask(void* pvParameters) {
         if (samplesCollected < samplesRequired) {
           // If the IMU is moving, do not add samples to calibration average
           if (accelRaw.mag() > 0.9 && accelRaw.mag() < 1.1 && gyroRaw.mag() < 2.0) {
-            accelCalibrationSums += accelFiltered;
+            accelCalibrationSums += accelRaw;
             gyroCalibrationSums += gyroRaw;
             samplesCollected++;
           }
@@ -218,7 +206,8 @@ void AccelerometerTask(void* pvParameters) {
       lastMeasurement = now;
 
       // Accel integration to vertical velocity (does not use gyroscope)
-      accelCorrected = gravityRotQuatn.rotate(accelFiltered, false);
+      accelCorrected = gravityRotQuatn.rotate(accelRaw, false);
+      accelCorrected.z -= accelGravityOffset;
       accelCorrected.z -= 1; // Subtract gravity (1G)
       float accelZ_mSec = accelCorrected.z * GRAVITY_ACCEL;
 

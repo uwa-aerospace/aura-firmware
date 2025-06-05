@@ -119,7 +119,7 @@ SetupStatus setupRadio(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint
   );
   Radio.RxBoosted(0);
 
-  ESP_LOGI(TAG, "Radio setup successful");
+  ESP_LOGI(TAG, "Radio setup successful @ %dMHz", freqHz);
 
   return SETUP_OK;
 }
