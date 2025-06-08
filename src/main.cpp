@@ -95,6 +95,7 @@ void setup() {
   prefs.begin("aura-settings", false);
   int radioFreq = prefs.getInt("radioFreq", 9190);
   pinMode(CAMERA_CONTROL, OUTPUT);
+  digitalWrite(CAMERA_CONTROL, 0);
   
   SetupStatus setupStatus = SETUP_OK;
 
