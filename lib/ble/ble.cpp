@@ -38,7 +38,7 @@ class BLEReceiveCallback : public BLECharacteristicCallbacks {
       command = RADIO_FREQ_CMD + ("," + std::to_string(frequency));
     }
     else if (value.rfind("CAMCTL,", 0) == 0) {
-      int state = std::stoi(value.substr(5));
+      int state = std::stoi(value.substr(7));
       command = CAM_CTL_CMD + ("," + std::to_string(state));
     }
 
